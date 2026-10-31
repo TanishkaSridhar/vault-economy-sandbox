@@ -3,7 +3,7 @@ public class RuleBrain implements Brain {
     public String decide(Agent agent, Town town) {
         int food= agent.getFood();
         double money= agent.getMoney();
-        double price = town.getPrice();
+        double price = town.getFoodPrice();
         if (agent instanceof Farmer){
             if (food>=6) return "SELL";
             return "FARM";

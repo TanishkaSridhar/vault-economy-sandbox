@@ -1,9 +1,4 @@
-/**
- * INHERITANCE: a Diplomat IS-AN Agent.
- * POLYMORPHISM: overrides act() with its own behaviour.
- * Diplomats travel between towns on official work, earning a fee
- * for each visit, and buy food when they run low.
- */
+/*got inheritance and polymorphism here, with overriding methods, and also extending the base class */
 public class Diplomat extends Agent {
 
     private static final double VISIT_FEE = 8;

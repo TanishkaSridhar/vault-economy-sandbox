@@ -5,12 +5,12 @@ public class Agent {
     protected Brain brain;
     protected Inventory bag;
 
-    public Agent(String name, Town location, Wallet wallet, Brain brain, Inventory bag) {
+    public Agent(String name, double money, int food, Town startTown) {
         this.name = name;
-        this.location = location;
-        this.wallet = wallet;
-        this.brain = brain;
-        this.bag = bag;
+        this.location = startTown;
+        this.wallet = new Wallet(money);
+        this.brain = new RuleBrain();
+        this.bag = new Inventory(food);
     }
     public String getName(){
         return name;
@@ -22,7 +22,7 @@ public class Agent {
         return bag.getFood();
     }
     public double getMoney(){
-        return wallet.getMoney();
+        return wallet.getBalance();
     }
     public String getRole(){
         return "Agent"; //can be overridden by subclasses
@@ -39,13 +39,15 @@ public class Agent {
     }
 
     protected String buyFood(int amount){
-        double cost=amount*location.getPrice();
+        double cost=amount*location.getFoodPrice();
         try{
             wallet.spend(cost);
             if (!location.giveFood(amount)){
                 wallet.earn(cost); //get refund if no food available
-                return name+" tried to buy food but "+location.getName()+" food at "+(int)location.getFoodPrice()+" each in "+location.getName();
+                return "tried to buy food but "+location.getName()+" has none left";
             }
+            bag.add(amount);
+            return "BOUGHT "+amount+" food at "+(int)location.getFoodPrice()+" each in "+location.getName();
         }   
         catch(NotEnoughMoneyException e){
             return "cannot afford food ("+e.getMessage()+")";
@@ -55,10 +57,10 @@ public class Agent {
         if (!bag.remove(amount)){
             return name+" does not have enough food to sell";
         }
-        double earned=amount*location.getPrice();
+        double earned=amount*location.getFoodPrice();
         wallet.earn(earned);
         location.receiveFood(amount);
-        return "SOLD "+amount+" food at "+(int)location.getPrice()+" each in "+location.getName();
+        return "SOLD "+amount+" food at "+(int)location.getFoodPrice()+" each in "+location.getName();
     }
     protected String travelTo(Town town){
         Town from=location;
@@ -67,6 +69,6 @@ public class Agent {
     }
     @Override 
     public String toString(){
-        return String.format("%-8s %-11s money: %6.1f food: %2d in %s", name, "(",getRole(), ")",getMoney(), getFood(), getName());
+        return String.format("%-8s %-11s money: %6.1f food: %2d in %s", name, "("+getRole()+")", getMoney(), getFood(), location.getName());
     }
 }
