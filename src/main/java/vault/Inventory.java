@@ -1,3 +1,5 @@
+package vault;
+
 public class Inventory {
 
     private int food;

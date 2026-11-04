@@ -2,3 +2,7 @@ out/
 *.class
 .vscode/
 .idea/
+target/
+*.db
+*.db-wal
+*.db-shm

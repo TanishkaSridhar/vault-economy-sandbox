@@ -1,3 +1,5 @@
+package vault;
+
 public class Wallet {
 
     private double balance;

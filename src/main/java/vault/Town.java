@@ -1,3 +1,5 @@
+package vault;
+
 /**
  * CLASSES & OBJECTS
  * A town has a food market. Its price changes at the end of every turn,
@@ -44,7 +46,7 @@ public class Town {
      * more selling than buying -> price falls
      * more buying than selling -> price rises
      */
-    public String updatePrice() {
+    public MarketReport updatePrice() {
         double oldPrice = foodPrice;
 
         if (soldThisTurn > boughtThisTurn) {
@@ -53,10 +55,9 @@ public class Town {
             foodPrice = Math.min(20, foodPrice + 1);
         }
 
+        MarketReport report = new MarketReport(name, oldPrice, foodPrice, foodStock, soldThisTurn, boughtThisTurn);
         soldThisTurn = 0;
         boughtThisTurn = 0;
-
-        return name + " food price: " + (int) oldPrice + " -> " + (int) foodPrice
-                + "  (stock " + foodStock + ")";
+        return report;
     }
 }

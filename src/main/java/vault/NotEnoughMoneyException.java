@@ -1,3 +1,5 @@
+package vault;
+
 public class NotEnoughMoneyException extends Exception {
 
     public NotEnoughMoneyException(double needed, double available) {
