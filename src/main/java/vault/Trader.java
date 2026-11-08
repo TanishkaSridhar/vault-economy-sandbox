@@ -1,6 +1,7 @@
 package vault;
 
 import java.util.Map;
+import java.util.List;
 
 /**
  * INHERITANCE: a Trader IS-AN Agent.
@@ -31,6 +32,11 @@ public class Trader extends Agent {
     }
 
     @Override
+    public List<Action> allowedActions() {
+        return List.of(Action.BUY, Action.SELL, Action.TRAVEL, Action.REST);
+    }
+
+    @Override
     public Outcome perform(Decision decision, World world) {
         switch (decision.action()) {
             case SELL:
@@ -44,11 +50,7 @@ public class Trader extends Agent {
                 return result;
             }
             case TRAVEL: {
-                Town target = world.findTown(decision.target());
-                if (target == null) {
-                    return Outcome.failed(Action.TRAVEL, "no town called " + decision.target());
-                }
-                return travelTo(target);
+                return travelToward(decision.target(), world);
             }
             default:
                 return super.perform(decision, world);

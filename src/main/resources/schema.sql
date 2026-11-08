@@ -30,13 +30,14 @@ CREATE TABLE IF NOT EXISTS agents (
 CREATE TABLE IF NOT EXISTS towns (
     run_id       INTEGER NOT NULL REFERENCES runs(id),
     name         TEXT    NOT NULL,
+    terrain      TEXT,                          -- decides how much farmers grow there
     start_price  REAL    NOT NULL,
     start_stock  INTEGER NOT NULL,
     PRIMARY KEY (run_id, name)
 );
 
 -- What each brain chose, what it saw when choosing, and how it turned out.
--- Step 2 (LLM brain) adds prompt / response / model / latency columns here.
+-- The LLM brain step will add prompt / response / model / latency columns here.
 CREATE TABLE IF NOT EXISTS decisions (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id            INTEGER NOT NULL REFERENCES runs(id),
@@ -72,15 +73,41 @@ CREATE TABLE IF NOT EXISTS events (
     data_json    TEXT                           -- the numbers: qty, price, from, to ...
 );
 
+-- The map: roads between towns (the geography graph's edges). Roads are two-way.
+CREATE TABLE IF NOT EXISTS roads (
+    run_id    INTEGER NOT NULL REFERENCES runs(id),
+    town_a    TEXT    NOT NULL,
+    town_b    TEXT    NOT NULL,
+    distance  REAL    NOT NULL,                 -- km
+    terrain   TEXT    NOT NULL,                 -- PLAINS / COAST / FOREST / HILLS
+    coins     REAL    NOT NULL,                 -- toll for one trip along this road
+    food      INTEGER NOT NULL,                 -- extra food eaten on one trip
+    PRIMARY KEY (run_id, town_a, town_b)
+);
+
 -- End-of-turn snapshot of every agent (turn 0 = starting state).
 CREATE TABLE IF NOT EXISTS agent_states (
-    run_id  INTEGER NOT NULL REFERENCES runs(id),
-    turn    INTEGER NOT NULL,
-    agent   TEXT    NOT NULL,
-    town    TEXT    NOT NULL,
-    money   REAL    NOT NULL,
-    food    INTEGER NOT NULL,
+    run_id       INTEGER NOT NULL REFERENCES runs(id),
+    turn         INTEGER NOT NULL,
+    agent        TEXT    NOT NULL,
+    town         TEXT    NOT NULL,
+    money        REAL    NOT NULL,
+    food         INTEGER NOT NULL,
+    destination  TEXT,                          -- where it is heading if part-way through a trip
     PRIMARY KEY (run_id, turn, agent)
+);
+
+-- End-of-turn snapshot of the relationship graph (turn 0 = starting state).
+-- One row per directed edge: what from_agent thinks of to_agent.
+CREATE TABLE IF NOT EXISTS relationships (
+    run_id       INTEGER NOT NULL REFERENCES runs(id),
+    turn         INTEGER NOT NULL,
+    from_agent   TEXT    NOT NULL,
+    to_agent     TEXT    NOT NULL,
+    trust        REAL    NOT NULL,              -- -1 .. +1
+    familiarity  REAL    NOT NULL,              --  0 .. 1
+    meetings     INTEGER NOT NULL,              -- turns spent in the same town so far
+    PRIMARY KEY (run_id, turn, from_agent, to_agent)
 );
 
 -- End-of-turn snapshot of every market (turn 0 = starting state).

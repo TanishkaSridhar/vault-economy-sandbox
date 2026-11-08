@@ -8,6 +8,7 @@ package vault;
 public class Town {
 
     private final String name;
+    private final Terrain terrain;
     private double foodPrice;
     private int foodStock;
 
@@ -15,13 +16,20 @@ public class Town {
     private int soldThisTurn = 0;
     private int boughtThisTurn = 0;
 
-    public Town(String name, double foodPrice, int foodStock) {
+    public Town(String name, Terrain terrain, double foodPrice, int foodStock) {
         this.name = name;
+        this.terrain = terrain;
         this.foodPrice = foodPrice;
         this.foodStock = foodStock;
     }
 
+    /** A town on plains. */
+    public Town(String name, double foodPrice, int foodStock) {
+        this(name, Terrain.PLAINS, foodPrice, foodStock);
+    }
+
     public String getName()      { return name; }
+    public Terrain getTerrain()  { return terrain; }
     public double getFoodPrice() { return foodPrice; }
     public int getFoodStock()    { return foodStock; }
 

@@ -1,6 +1,7 @@
 package vault;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -22,16 +23,18 @@ public class Diplomat extends Agent {
     }
 
     @Override
+    public List<Action> allowedActions() {
+        return List.of(Action.BUY, Action.TRAVEL, Action.REST);
+    }
+
+    @Override
     public Outcome perform(Decision decision, World world) {
         switch (decision.action()) {
             case BUY:
                 return buyFood(decision.amount());
             case TRAVEL: {
-                Town target = world.findTown(decision.target());
-                if (target == null) {
-                    return Outcome.failed(Action.TRAVEL, "no town called " + decision.target());
-                }
-                Outcome travel = travelTo(target);
+                Outcome travel = travelToward(decision.target(), world);
+                if (!travel.success()) return travel;
                 wallet.earn(VISIT_FEE);
                 Map<String, Object> data = new HashMap<>(travel.data());
                 data.put("fee", VISIT_FEE);

@@ -1,0 +1,22 @@
+{
+  "name": "classic",
+  "description": "The original 3-town, 6-agent world. Valley is the hub; no road between Port and Hill.",
+  "travel": { "coinsPerEffort": 0.25, "effortPerFood": 10 },
+  "towns": [
+    { "name": "Valley", "terrain": "PLAINS", "foodPrice": 6, "foodStock": 20 },
+    { "name": "Port",   "terrain": "PLAINS", "foodPrice": 9, "foodStock": 10 },
+    { "name": "Hill",   "terrain": "PLAINS", "foodPrice": 8, "foodStock": 12 }
+  ],
+  "roads": [
+    { "from": "Valley", "to": "Port", "distance": 12, "terrain": "PLAINS" },
+    { "from": "Valley", "to": "Hill", "distance": 8,  "terrain": "HILLS" }
+  ],
+  "agents": [
+    { "name": "Meena",   "role": "Farmer",   "town": "Valley" },
+    { "name": "Kumar",   "role": "Farmer",   "town": "Valley" },
+    { "name": "Lakshmi", "role": "Farmer",   "town": "Hill" },
+    { "name": "Ravi",    "role": "Trader",   "town": "Port" },
+    { "name": "Arun",    "role": "Trader",   "town": "Valley" },
+    { "name": "Priya",   "role": "Diplomat", "town": "Port" }
+  ]
+}

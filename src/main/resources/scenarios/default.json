@@ -1,0 +1,45 @@
+{
+  "name": "default",
+  "description": "8 towns on 8 terrains, 16 agents. Fertile river and plains towns in the middle grow cheap food; the coast, marsh, desert and mountains grow little and pay more for it. Two routes link the west and east: a short river/plains road and a long, hard southern loop over desert and mountains.",
+  "travel": { "coinsPerEffort": 0.25, "effortPerFood": 10 },
+  "towns": [
+    { "name": "Riverton",  "terrain": "RIVER",     "foodPrice": 5,  "foodStock": 24 },
+    { "name": "Valley",    "terrain": "PLAINS",    "foodPrice": 6,  "foodStock": 20 },
+    { "name": "Port",      "terrain": "COAST",     "foodPrice": 9,  "foodStock": 10 },
+    { "name": "Woodhaven", "terrain": "FOREST",    "foodPrice": 8,  "foodStock": 12 },
+    { "name": "Saltmarsh", "terrain": "MARSH",     "foodPrice": 10, "foodStock": 8 },
+    { "name": "Hill",      "terrain": "HILLS",     "foodPrice": 8,  "foodStock": 12 },
+    { "name": "Sandreach", "terrain": "DESERT",    "foodPrice": 13, "foodStock": 6 },
+    { "name": "Highpeak",  "terrain": "MOUNTAINS", "foodPrice": 14, "foodStock": 5 }
+  ],
+  "roads": [
+    { "from": "Valley",    "to": "Riverton",  "distance": 6,  "terrain": "RIVER" },
+    { "from": "Valley",    "to": "Port",      "distance": 12, "terrain": "PLAINS" },
+    { "from": "Valley",    "to": "Hill",      "distance": 8,  "terrain": "HILLS" },
+    { "from": "Riverton",  "to": "Port",      "distance": 14, "terrain": "RIVER" },
+    { "from": "Riverton",  "to": "Woodhaven", "distance": 10, "terrain": "FOREST" },
+    { "from": "Woodhaven", "to": "Hill",      "distance": 9,  "terrain": "FOREST" },
+    { "from": "Port",      "to": "Saltmarsh", "distance": 7,  "terrain": "COAST" },
+    { "from": "Saltmarsh", "to": "Sandreach", "distance": 12, "terrain": "DESERT" },
+    { "from": "Sandreach", "to": "Highpeak",  "distance": 8,  "terrain": "MOUNTAINS" },
+    { "from": "Hill",      "to": "Highpeak",  "distance": 10, "terrain": "MOUNTAINS" }
+  ],
+  "agents": [
+    { "name": "Meena",   "role": "Farmer",   "town": "Valley" },
+    { "name": "Kumar",   "role": "Farmer",   "town": "Valley" },
+    { "name": "Selvi",   "role": "Farmer",   "town": "Riverton" },
+    { "name": "Ganesh",  "role": "Farmer",   "town": "Riverton" },
+    { "name": "Lakshmi", "role": "Farmer",   "town": "Hill" },
+    { "name": "Anita",   "role": "Farmer",   "town": "Woodhaven" },
+    { "name": "Murugan", "role": "Farmer",   "town": "Saltmarsh" },
+    { "name": "Devi",    "role": "Farmer",   "town": "Highpeak" },
+    { "name": "Ravi",    "role": "Trader",   "town": "Port" },
+    { "name": "Arun",    "role": "Trader",   "town": "Valley" },
+    { "name": "Joseph",  "role": "Trader",   "town": "Riverton" },
+    { "name": "Kavya",   "role": "Trader",   "town": "Port" },
+    { "name": "Farah",   "role": "Trader",   "town": "Sandreach" },
+    { "name": "Priya",   "role": "Diplomat", "town": "Port" },
+    { "name": "Vikram",  "role": "Diplomat", "town": "Highpeak" },
+    { "name": "Nisha",   "role": "Diplomat", "town": "Woodhaven" }
+  ]
+}

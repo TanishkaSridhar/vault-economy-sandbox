@@ -37,6 +37,7 @@ public class SqliteEventLog implements EventLog {
                 s.execute("PRAGMA journal_mode = WAL"); // lets you read the db while a run is writing
             }
             createTables();
+            migrate();
             db.setAutoCommit(false);
         } catch (SQLException e) {
             throw new IllegalStateException("could not open database " + path, e);
@@ -58,6 +59,28 @@ public class SqliteEventLog implements EventLog {
         }
     }
 
+    /**
+     * Bring a database made by an older version of VAULT up to date.
+     * CREATE TABLE IF NOT EXISTS does not add new columns to an existing table,
+     * so columns added later are added here.
+     */
+    private void migrate() throws SQLException {
+        addColumnIfMissing("agent_states", "destination", "TEXT");
+        addColumnIfMissing("towns", "terrain", "TEXT");
+    }
+
+    private void addColumnIfMissing(String table, String column, String type) throws SQLException {
+        try (Statement s = db.createStatement();
+             ResultSet cols = s.executeQuery("PRAGMA table_info(" + table + ")")) {
+            while (cols.next()) {
+                if (cols.getString("name").equals(column)) return;
+            }
+        }
+        try (Statement s = db.createStatement()) {
+            s.execute("ALTER TABLE " + table + " ADD COLUMN " + column + " " + type);
+        }
+    }
+
     @Override
     public long runId() {
         return runId;
@@ -73,7 +96,15 @@ public class SqliteEventLog implements EventLog {
                 ps.setLong(2, seed);
                 ps.setInt(3, plannedTurns);
                 ps.setString(4, codeVersion);
-                ps.setString(5, toJson(Map.of("agents", world.getAgents().size(), "towns", world.getTowns().size())));
+                ps.setString(5, toJson(new TreeMap<>(Map.of(
+                        "scenario", world.getScenarioName(),
+                        "agents", world.getAgents().size(),
+                        "towns", world.getTowns().size(),
+                        "roads", world.getMap().allRoads().size(),
+                        "coinsPerEffort", world.getMap().getCoinsPerEffort(),
+                        // JSON has no "infinity", so free food travel is saved as 0
+                        "effortPerFood", Double.isInfinite(world.getMap().getEffortPerFood())
+                                ? 0 : world.getMap().getEffortPerFood()))));
                 ps.executeUpdate();
                 try (ResultSet keys = ps.getGeneratedKeys()) {
                     keys.next();
@@ -95,12 +126,28 @@ public class SqliteEventLog implements EventLog {
                 ps.executeBatch();
             }
             try (PreparedStatement ps = db.prepareStatement(
-                    "INSERT INTO towns (run_id, name, start_price, start_stock) VALUES (?,?,?,?)")) {
+                    "INSERT INTO towns (run_id, name, terrain, start_price, start_stock) VALUES (?,?,?,?,?)")) {
                 for (Town t : world.getTowns()) {
                     ps.setLong(1, runId);
                     ps.setString(2, t.getName());
-                    ps.setDouble(3, t.getFoodPrice());
-                    ps.setInt(4, t.getFoodStock());
+                    ps.setString(3, t.getTerrain().name());
+                    ps.setDouble(4, t.getFoodPrice());
+                    ps.setInt(5, t.getFoodStock());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            try (PreparedStatement ps = db.prepareStatement(
+                    "INSERT INTO roads (run_id, town_a, town_b, distance, terrain, coins, food) VALUES (?,?,?,?,?,?,?)")) {
+                WorldMap map = world.getMap();
+                for (Road r : map.allRoads()) {
+                    ps.setLong(1, runId);
+                    ps.setString(2, r.a());
+                    ps.setString(3, r.b());
+                    ps.setDouble(4, r.distance());
+                    ps.setString(5, r.terrain().name());
+                    ps.setDouble(6, map.coinCost(r));
+                    ps.setInt(7, map.foodCost(r));
                     ps.addBatch();
                 }
                 ps.executeBatch();
@@ -198,7 +245,7 @@ public class SqliteEventLog implements EventLog {
     public void endTurn(int turn, World world) {
         try {
             try (PreparedStatement ps = db.prepareStatement(
-                    "INSERT INTO agent_states (run_id, turn, agent, town, money, food) VALUES (?,?,?,?,?,?)")) {
+                    "INSERT INTO agent_states (run_id, turn, agent, town, money, food, destination) VALUES (?,?,?,?,?,?,?)")) {
                 for (Agent a : world.getAgents()) {
                     ps.setLong(1, runId);
                     ps.setInt(2, turn);
@@ -206,6 +253,22 @@ public class SqliteEventLog implements EventLog {
                     ps.setString(4, a.getLocation().getName());
                     ps.setDouble(5, a.getMoney());
                     ps.setInt(6, a.getFood());
+                    ps.setString(7, a.getDestination());
+                    ps.addBatch();
+                }
+                ps.executeBatch();
+            }
+            try (PreparedStatement ps = db.prepareStatement(
+                    "INSERT INTO relationships (run_id, turn, from_agent, to_agent, trust, familiarity, meetings)"
+                            + " VALUES (?,?,?,?,?,?,?)")) {
+                for (Relationship r : world.getSocial().all()) {
+                    ps.setLong(1, runId);
+                    ps.setInt(2, turn);
+                    ps.setString(3, r.getFrom());
+                    ps.setString(4, r.getTo());
+                    ps.setDouble(5, r.getTrust());
+                    ps.setDouble(6, r.getFamiliarity());
+                    ps.setInt(7, r.getMeetings());
                     ps.addBatch();
                 }
                 ps.executeBatch();
