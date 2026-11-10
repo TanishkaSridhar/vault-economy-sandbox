@@ -67,6 +67,12 @@ public class SqliteEventLog implements EventLog {
     private void migrate() throws SQLException {
         addColumnIfMissing("agent_states", "destination", "TEXT");
         addColumnIfMissing("towns", "terrain", "TEXT");
+        String[][] llmColumns = {{"brain_used", "TEXT"}, {"model", "TEXT"}, {"prompt", "TEXT"},
+                {"response", "TEXT"}, {"latency_ms", "INTEGER"}, {"input_tokens", "INTEGER"},
+                {"output_tokens", "INTEGER"}, {"failures_json", "TEXT"}};
+        for (String[] col : llmColumns) {
+            addColumnIfMissing("decisions", col[0], col[1]);
+        }
     }
 
     private void addColumnIfMissing(String table, String column, String type) throws SQLException {
@@ -163,13 +169,14 @@ public class SqliteEventLog implements EventLog {
     }
 
     @Override
-    public void decision(int turn, Agent agent, Observation observation, Decision decision,
+    public void decision(int turn, Agent agent, Observation observation, Decision decision, BrainTrace trace,
                          Outcome outcome, Agent.State before, Agent.State after) {
         long decisionId;
         try (PreparedStatement ps = db.prepareStatement(
                 "INSERT INTO decisions (run_id, turn, agent, brain, observation_json, action, amount, target, reason,"
-                        + " success, result, town_before, town_after, money_before, money_after, food_before, food_after)"
-                        + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        + " success, result, town_before, town_after, money_before, money_after, food_before, food_after,"
+                        + " brain_used, model, prompt, response, latency_ms, input_tokens, output_tokens, failures_json)"
+                        + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, runId);
             ps.setInt(2, turn);
@@ -188,6 +195,18 @@ public class SqliteEventLog implements EventLog {
             ps.setDouble(15, after.money());
             ps.setInt(16, before.food());
             ps.setInt(17, after.food());
+            if (trace == null) {
+                for (int i = 18; i <= 25; i++) ps.setNull(i, Types.VARCHAR);
+            } else {
+                ps.setString(18, trace.brainUsed());
+                ps.setString(19, trace.model());
+                ps.setString(20, trace.prompt());
+                ps.setString(21, trace.response());
+                ps.setLong(22, trace.latencyMs());
+                if (trace.inputTokens() == null) ps.setNull(23, Types.INTEGER); else ps.setInt(23, trace.inputTokens());
+                if (trace.outputTokens() == null) ps.setNull(24, Types.INTEGER); else ps.setInt(24, trace.outputTokens());
+                ps.setString(25, trace.failures().isEmpty() ? null : toJson(trace.failures()));
+            }
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 keys.next();

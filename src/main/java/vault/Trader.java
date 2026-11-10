@@ -21,6 +21,11 @@ public class Trader extends Agent {
         return lastBuyPrice;
     }
 
+    /** For setting up test situations (package-private: the simulation itself never calls it). */
+    void setLastBuyPrice(double price) {
+        this.lastBuyPrice = price;
+    }
+
     @Override
     public String getRole() {
         return "Trader";

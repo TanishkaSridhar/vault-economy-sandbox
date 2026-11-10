@@ -12,8 +12,11 @@ public interface EventLog extends AutoCloseable {
     /** Record a new run and the starting state of the world. */
     void startRun(World world, long seed, int plannedTurns, String codeVersion);
 
-    /** Record one agent's decision and its outcome (also recorded as an event). */
-    void decision(int turn, Agent agent, Observation observation, Decision decision,
+    /**
+     * Record one agent's decision and its outcome (also recorded as an event).
+     * trace is null for brains that have nothing extra to record (the rule brain).
+     */
+    void decision(int turn, Agent agent, Observation observation, Decision decision, BrainTrace trace,
                   Outcome outcome, Agent.State before, Agent.State after);
 
     /** Record something that happened that was not an agent's decision (e.g. hunger). */

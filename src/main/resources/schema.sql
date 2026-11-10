@@ -37,7 +37,7 @@ CREATE TABLE IF NOT EXISTS towns (
 );
 
 -- What each brain chose, what it saw when choosing, and how it turned out.
--- The LLM brain step will add prompt / response / model / latency columns here.
+-- For language-model brains also: which model answered, the full prompt and answer, time and tokens.
 CREATE TABLE IF NOT EXISTS decisions (
     id                INTEGER PRIMARY KEY AUTOINCREMENT,
     run_id            INTEGER NOT NULL REFERENCES runs(id),
@@ -56,7 +56,15 @@ CREATE TABLE IF NOT EXISTS decisions (
     money_before      REAL    NOT NULL,
     money_after       REAL    NOT NULL,
     food_before       INTEGER NOT NULL,
-    food_after        INTEGER NOT NULL
+    food_after        INTEGER NOT NULL,
+    brain_used        TEXT,                     -- llm:<provider> / rule-fallback / NULL for the rule brain
+    model             TEXT,                     -- the model that answered
+    prompt            TEXT,                     -- the whole conversation sent to it
+    response          TEXT,                     -- its raw answer
+    latency_ms        INTEGER,                  -- time spent waiting for models on this decision
+    input_tokens      INTEGER,
+    output_tokens     INTEGER,
+    failures_json     TEXT                      -- failed attempts before the answer used (JSON list)
 );
 
 -- Things that happened in the world. Memory, reputation and rumours (later steps)

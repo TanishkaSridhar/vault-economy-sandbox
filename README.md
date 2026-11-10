@@ -61,7 +61,57 @@ java -jar target/vault.jar 20 --seed 7           # a different random seed
 java -jar target/vault.jar --db test.db          # save to a different file
 java -jar target/vault.jar --no-db               # don't save anything
 java -jar target/vault.jar --free-travel         # roads cost nothing (comparison / policy experiment)
+java -jar target/vault.jar 5 --brain llm         # every agent decides with a language model (needs keys, see below)
 ```
+
+## Language-model brains
+
+With `--brain llm` (or `"brain": "llm"` on an agent in a scenario file) agents decide by asking a
+language model. Only free API tiers are used. The models were chosen with `ModelBench`
+(below) and are listed in [`src/main/resources/llm.json`](src/main/resources/llm.json), in fallback order:
+
+| Order | Provider / model | Why |
+|---|---|---|
+| 1 | Groq, `gpt-oss-120b` | best test score (about 95% sensible moves), about 1 s per answer |
+| 2 | Cloudflare Workers AI, `gpt-oss-120b` | the same model, so behaviour stays the same while Groq is busy; about 5 s |
+| 3 | Google Gemini, `gemini-3.5-flash-lite` | a different company, in case both of the above are down |
+| 4 | Groq, `gpt-oss-20b` | separate quota |
+| 5 | the rule brain | never fails, never waits |
+
+**Keys.** Put them in a file called `.env` in the project folder (it is git-ignored, never commit it):
+
+```
+GROQ_API_KEY=...
+CLOUDFLARE_API_TOKEN=...
+CLOUDFLARE_ACCOUNT_ID=...
+GEMINI_API_KEY=...
+```
+
+Providers without a key are skipped. To change models or limits, copy `llm.json` to the project
+folder and edit the copy (or pass `--llm-config FILE`).
+
+**What happens on each decision** (`LlmBrain`): the observation is turned into a prompt
+(`PromptBuilder`), sent to the first provider, and the answer is checked against the rules
+(`DecisionParser`). A rule-breaking answer is sent back once with the reason; after that, or if
+the provider is busy, out of quota or does not answer within 20 s, the next provider is asked.
+A decision that takes more than 30 s in total is made by the rule brain. `LlmRouter` keeps every
+provider under its free limits (requests per minute and per day), rests a provider that says
+"too many requests" and switches off one with a bad key. The whole conversation, the model that
+answered, the time taken, tokens and every failed attempt are saved in the `decisions` table.
+
+**Free-tier limits.** Groq allows gpt-oss-120b about 8000 tokens a minute (about 6 decisions)
+and about 1000 requests a day, so in a 16-agent world most decisions go to Cloudflare's copy of
+the same model. One turn takes roughly a minute.
+
+**ModelBench** checks candidate models on 13 fixed situations (easy moves and traps, such as
+spending the last food on a toll) using the same prompt and checks as the game:
+
+```
+java -cp target/vault.jar vault.ModelBench                      # every candidate, once
+java -cp target/vault.jar vault.ModelBench --only groq --repeats 3
+```
+
+It prints a score table and writes every answer to `model-bench.csv`.
 
 ## Scenarios
 
@@ -83,7 +133,7 @@ Every run is added to `vault.db` (nothing is overwritten). Open it with any SQLi
 |---|---|---|
 | `runs` | run | seed, number of turns, git commit of the code, start/finish time |
 | `agents`, `towns` | agent / town per run | starting setup (towns include their terrain) |
-| `decisions` | agent per turn | what the agent saw (`observation_json`), what its brain chose and why, the result, before/after money, food and town |
+| `decisions` | agent per turn | what the agent saw (`observation_json`), what its brain chose and why, the result, before/after money, food and town; for language-model brains also the model that answered, the prompt and answer, time, tokens and failed attempts |
 | `events` | thing that happened | BOUGHT, SOLD, FARMED, TRAVELLED, RESTED, ACTION_FAILED, HUNGRY, with details in `data_json` |
 | `roads` | road per run | the map: the two towns, distance, terrain, coin and food cost |
 | `agent_states` | agent per turn | money, food, town and (mid-trip) destination at the end of each turn (turn 0 = start) |
@@ -107,6 +157,10 @@ SELECT run_id, agent, COUNT(*) FROM events WHERE type = 'HUNGRY' GROUP BY run_id
 -- how much each agent spent on tolls
 SELECT agent, SUM(json_extract(data_json, '$.coins')) FROM events
 WHERE run_id = (SELECT MAX(id) FROM runs) AND type = 'TRAVELLED' GROUP BY agent;
+
+-- which model made each decision, and how long it took
+SELECT brain_used, COUNT(*), AVG(latency_ms) FROM decisions
+WHERE run_id = (SELECT MAX(id) FROM runs) GROUP BY brain_used;
 
 -- how Ravi's familiarity with everyone changed over time
 SELECT turn, to_agent, familiarity FROM relationships
@@ -152,11 +206,11 @@ experiment such as "abolish tolls" is just a different map.
 |---|---|
 | Classes & objects | `Town`, `Agent`, `World`; objects created in `Simulation.java` |
 | Encapsulation | `Wallet`, `Inventory` and `Relationship` keep their values `private` and only change them through checked methods |
-| Abstraction | `Brain` interface (implemented by `RuleBrain`); `EventLog` interface (`SqliteEventLog`, `NoEventLog`) |
-| Inheritance | `Farmer`, `Trader`, `Diplomat` extend `Agent` |
+| Abstraction | `Brain` interface (implemented by `RuleBrain` and `LlmBrain`); `EventLog` interface (`SqliteEventLog`, `NoEventLog`); `LlmClient` interface (any language model) |
+| Inheritance | `Farmer`, `Trader`, `Diplomat` extend `Agent`; `OpenAiClient` extends the abstract `HttpLlmClient` |
 | Polymorphism | Each subclass overrides `perform()`; `World.runTurn()` calls it on every agent |
 | Composition | An `Agent` has a `Wallet`, an `Inventory` and a `Brain`; the `World` has towns, agents, a `WorldMap`, a `SocialGraph` and an `EventLog` |
-| Exception handling | `NotEnoughMoneyException` thrown by `Wallet.spend()` and caught in `Agent.buyFood()`; database errors wrapped in `SqliteEventLog` |
+| Exception handling | `NotEnoughMoneyException` thrown by `Wallet.spend()` and caught in `Agent.buyFood()`; database errors wrapped in `SqliteEventLog`; `LlmException` (network, key, rate limit, bad reply) and `DecisionParser.InvalidAnswer` decide what `LlmBrain` tries next |
 | Records & enums | `Observation`, `Decision`, `Outcome`, `MarketReport`, `Road`, `Route`, `Scenario`; `Action`, `Terrain` |
 
 ## Roadmap
@@ -164,7 +218,7 @@ experiment such as "abolish tolls" is just a different map.
 1. **Done: groundwork.** Maven build, typed brain input/output (`Observation` -> `Decision`), every run saved to SQLite.
 2. **Done: the two graphs.** Map of towns and roads (distance, terrain, one road per turn, tolls and food by distance); agents only see live prices where they are; relationship graph between agents (trust, familiarity, meetings).
 3. **Done: bigger world.** Scenario files (towns, roads and agents as JSON); 8 towns on 8 terrains, 16 agents; terrain decides harvests and travel costs.
-4. **LLM brain.** Language models chosen from free API tiers, with the rule brain as the last resort. JSON answers checked against `Action`; every prompt and response saved so runs can be replayed.
+4. **Done: LLM brain.** Language models chosen by testing (`ModelBench`) from free API tiers, in a fallback chain ending in the rule brain; time limits per answer and per decision; JSON answers checked against the rules; every prompt and response saved.
 5. **Personality.** Numeric traits (risk, honesty, greed, trust) plus a written description for the prompt.
 6. **Memory.** Each agent's own view of past events, with summaries.
 7. **Deals between agents.** Offers, contracts, delivering or breaking them.

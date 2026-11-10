@@ -7,7 +7,7 @@ public class NoEventLog implements EventLog {
 
     @Override public void startRun(World world, long seed, int plannedTurns, String codeVersion) {}
     @Override public void decision(int turn, Agent agent, Observation observation, Decision decision,
-                                   Outcome outcome, Agent.State before, Agent.State after) {}
+                                   BrainTrace trace, Outcome outcome, Agent.State before, Agent.State after) {}
     @Override public void event(int turn, String type, String agent, String town, String message,
                                 Map<String, Object> data) {}
     @Override public void market(int turn, MarketReport report) {}

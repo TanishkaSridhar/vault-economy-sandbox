@@ -96,11 +96,17 @@ public class World {
             Observation obs = a.observe(this, turn);
             Agent.State before = a.snapshot();
             Decision decision = a.decide(obs);
+            BrainTrace trace = a.getBrain().lastTrace();
             Outcome outcome = a.perform(decision, this);
             Agent.State after = a.snapshot();
 
             System.out.printf("  %-8s %-11s -> %s%n", a.getName(), "(" + a.getRole() + ")", outcome.message());
-            log.decision(turn, a, obs, decision, outcome, before, after);
+            if (trace != null) {
+                // language-model brains explain themselves; show which model answered and why
+                String who = trace.fellBack() ? "rule fallback" : trace.brainUsed().substring(4);
+                System.out.printf("  %21s why [%s, %.1fs]: %s%n", "", who, trace.latencyMs() / 1000.0, decision.reason());
+            }
+            log.decision(turn, a, obs, decision, trace, outcome, before, after);
         }
 
         // 2. everyone eats 1 food

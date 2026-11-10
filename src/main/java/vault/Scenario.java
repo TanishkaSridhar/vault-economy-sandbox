@@ -27,8 +27,11 @@ public record Scenario(String name, String description, Travel travel,
 
     public record RoadSpec(String from, String to, double distance, Terrain terrain) {}
 
-    /** money and food are optional; without them the role's usual starting values are used. */
-    public record AgentSpec(String name, String role, String town, Double money, Integer food) {}
+    /**
+     * money and food are optional; without them the role's usual starting values are used.
+     * brain is "rule" (the default) or "llm", so one run can mix rule and language-model agents.
+     */
+    public record AgentSpec(String name, String role, String town, Double money, Integer food, String brain) {}
 
     private static final ObjectMapper JSON = new ObjectMapper()
             .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, true);

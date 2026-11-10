@@ -1,0 +1,42 @@
+{
+  "_comment": [
+    "The language models VAULT agents use, in fallback order: every decision asks the first",
+    "provider; if it is slow, busy, out of quota or answers badly, the next one; if all fail,",
+    "the rule brain decides. Chosen with ModelBench on 2026-11-09 (see README).",
+    "Keys are NEVER written here: apiKeyEnv names the variable in the environment or the",
+    "git-ignored .env file. ${NAME} in a baseUrl is filled in from there too.",
+    "requestsPerMinute / requestsPerDay: free-tier limits to stay under (0 = none), set a little",
+    "below the published ones. Limits and model names change; check each provider's dashboard.",
+    "Groq's real limit is tokens: 8000 per minute per model on the free tier. One decision is about",
+    "1300 tokens, so about 6 a minute fit; requestsPerMinute 5 keeps it under, and the rest of a",
+    "turn's decisions go to the same model on Cloudflare.",
+    "To change anything, copy this file to the project folder as llm.json and edit that copy."
+  ],
+  "temperature": 0.7,
+  "maxTokens": 1000,
+  "timeoutSeconds": 20,
+  "maxWaitSeconds": 10,
+  "maxSecondsPerDecision": 30,
+  "providers": [
+    { "name": "groq-120b",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "model": "openai/gpt-oss-120b", "apiKeyEnv": "GROQ_API_KEY",
+      "requestsPerMinute": 5, "requestsPerDay": 900,
+      "extra": { "reasoning_effort": "low" } },
+    { "name": "cloudflare-120b",
+      "baseUrl": "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/ai/v1",
+      "model": "@cf/openai/gpt-oss-120b", "apiKeyEnv": "CLOUDFLARE_API_TOKEN",
+      "requestsPerMinute": 20, "requestsPerDay": 0,
+      "extra": { "reasoning_effort": "low" } },
+    { "name": "gemini-lite",
+      "baseUrl": "https://generativelanguage.googleapis.com/v1beta/openai",
+      "model": "gemini-3.5-flash-lite", "apiKeyEnv": "GEMINI_API_KEY",
+      "requestsPerMinute": 10, "requestsPerDay": 0,
+      "extra": { "reasoning_effort": "low" } },
+    { "name": "groq-20b",
+      "baseUrl": "https://api.groq.com/openai/v1",
+      "model": "openai/gpt-oss-20b", "apiKeyEnv": "GROQ_API_KEY",
+      "requestsPerMinute": 5, "requestsPerDay": 900,
+      "extra": { "reasoning_effort": "low" } }
+  ]
+}
