@@ -78,16 +78,15 @@ language model. Only free API tiers are used. The models were chosen with `Model
 | 4 | Groq, `gpt-oss-20b` | separate quota |
 | 5 | the rule brain | never fails, never waits |
 
-**Keys.** Put them in a file called `.env` in the project folder (it is git-ignored, never commit it):
+**Keys.** Copy `.env.example` to `.env` in the project folder and fill in the keys you have
+(`.env` is git-ignored, never commit it):
 
 ```
-GROQ_API_KEY=...
-CLOUDFLARE_API_TOKEN=...
-CLOUDFLARE_ACCOUNT_ID=...
-GEMINI_API_KEY=...
+copy .env.example .env      (Windows)
+cp .env.example .env        (macOS / Linux)
 ```
 
-Providers without a key are skipped. To change models or limits, copy `llm.json` to the project
+Providers without a key are skipped; with no keys at all, `--brain llm` falls back to the rule brain. To change models or limits, copy `llm.json` to the project
 folder and edit the copy (or pass `--llm-config FILE`).
 
 **What happens on each decision** (`LlmBrain`): the observation is turned into a prompt
@@ -226,4 +225,12 @@ experiment such as "abolish tolls" is just a different map.
 9. **Rumours.** Information spreading along the relationship graph and roads, getting distorted, fading, or made up.
 10. **Validation.** Many seeds, baseline comparisons, checks against known real-world economic patterns, so policy tests can be trusted.
 
-Later: parallel decisions, more markets (stocks, labour), policy experiments.
+Later, if there is time:
+
+- **Simultaneous decisions.** Every agent decides at the same time on the same snapshot of the world
+  (`CompletableFuture` per agent, a `Phaser` as the barrier), then all decisions are carried out
+  together, with rules for conflicts such as two buyers moving the same price.
+- **No fixed turns.** A running timeline where agents act whenever they choose, based on the current
+  situation and on what others have already done, with a doubt factor: an unsure agent can wait to see
+  how things unfold before deciding.
+- More markets (stocks, labour), policy experiments.
