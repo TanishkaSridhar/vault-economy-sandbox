@@ -59,6 +59,7 @@ public abstract class HttpLlmClient implements LlmClient {
         HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(endpoint()))
                 .timeout(timeout)
                 .header("Content-Type", "application/json")
+                .header("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) VAULT/1.0")
                 .POST(HttpRequest.BodyPublishers.ofString(body));
         headers().forEach(builder::header);
         HttpRequest httpRequest = builder.build();
@@ -70,7 +71,17 @@ public abstract class HttpLlmClient implements LlmClient {
         } catch (HttpTimeoutException e) {
             throw new LlmException(LlmException.Kind.NETWORK, "timed out after " + timeout.toSeconds() + "s", e);
         } catch (IOException e) {
-            throw new LlmException(LlmException.Kind.NETWORK, "could not reach " + endpoint() + " (" + e + ")", e);
+            // Transient connection reset (e.g. stale HTTP/2 keep-alive socket closed by provider):
+            // Retry once before reporting a network failure
+            try {
+                Thread.sleep(200);
+                response = http.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+            } catch (IOException retryEx) {
+                throw new LlmException(LlmException.Kind.NETWORK, "could not reach " + endpoint() + " (" + retryEx + ")", retryEx);
+            } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+                throw new LlmException(LlmException.Kind.NETWORK, "interrupted", ie);
+            }
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw new LlmException(LlmException.Kind.NETWORK, "interrupted", e);
@@ -78,9 +89,9 @@ public abstract class HttpLlmClient implements LlmClient {
         long latencyMs = (System.nanoTime() - start) / 1_000_000;
         int status = response.statusCode();
 
-        if (status == 429) {
+        if (status == 429 || (status == 403 && (response.body().contains("1015") || response.body().toLowerCase().contains("rate limit")))) {
             // Do not wait here: the router rests this provider and the decision moves on to the next one.
-            throw new LlmException(LlmException.Kind.RATE_LIMIT, "HTTP 429: " + shorten(response.body()),
+            throw new LlmException(LlmException.Kind.RATE_LIMIT, "HTTP " + status + ": " + shorten(response.body()),
                     retryAfterSeconds(response));
         }
         if (status == 402) {

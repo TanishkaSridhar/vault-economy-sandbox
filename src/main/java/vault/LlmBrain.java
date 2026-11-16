@@ -53,41 +53,56 @@ public class LlmBrain implements Brain {
         String lastPrompt = request.transcript();
         String lastAnswer = null;
 
-        chain:
-        for (LlmClient client : router.chain()) {
-            LlmRequest attempt = request;
-            for (int tryNo = 1; tryNo <= 2; tryNo++) {
-                if (router.now() - start >= router.decisionBudgetMs()) {
-                    failures.add("out of time (" + router.decisionBudgetMs() / 1000 + " s per decision)");
-                    break chain;
+        outer:
+        for (int pass = 1; pass <= 2; pass++) {
+            chain:
+            for (LlmClient client : router.chain()) {
+                LlmRequest attempt = request;
+                for (int tryNo = 1; tryNo <= 2; tryNo++) {
+                    if (router.now() - start >= router.decisionBudgetMs()) {
+                        failures.add("out of time (" + router.decisionBudgetMs() / 1000 + " s per decision)");
+                        break outer;
+                    }
+                    if (!router.acquire(client)) {
+                        failures.add(client.name() + ": skipped (resting, or at its request limit)");
+                        break;
+                    }
+                    LlmReply reply;
+                    try {
+                        reply = client.complete(attempt);
+                    } catch (LlmException e) {
+                        router.failure(client, e);
+                        failures.add(client.name() + ": " + e);
+                        break; // this provider is not answering: try the next one
+                    }
+                    lastPrompt = attempt.transcript();
+                    lastAnswer = reply.text();
+                    try {
+                        Decision d = DecisionParser.parse(reply.text(), obs);
+                        router.success(client, reply);
+                        lastTrace = new BrainTrace("llm:" + client.name(), reply.model(), lastPrompt, reply.text(),
+                                router.now() - start, reply.inputTokens(), reply.outputTokens(), List.copyOf(failures));
+                        return d;
+                    } catch (DecisionParser.InvalidAnswer e) {
+                        router.answeredBadly(client, reply);
+                        failures.add(client.name() + ": invalid answer: " + e.getMessage());
+                        attempt = attempt.withCorrection(reply.text(),
+                                "That answer cannot be used: " + e.getMessage()
+                                        + ". Reply again with ONLY the JSON object.");
+                    }
                 }
-                if (!router.acquire(client)) {
-                    failures.add(client.name() + ": skipped (resting, or at its request limit)");
-                    break;
-                }
-                LlmReply reply;
+            }
+            // If all providers were skipped due to temporary rate limits and budget remains, wait briefly and retry
+            boolean onlyRateLimited = !failures.isEmpty() && failures.stream().allMatch(f -> f.contains("skipped"));
+            if (pass == 1 && onlyRateLimited && router.now() - start + 5000 < router.decisionBudgetMs()) {
                 try {
-                    reply = client.complete(attempt);
-                } catch (LlmException e) {
-                    router.failure(client, e);
-                    failures.add(client.name() + ": " + e);
-                    break; // this provider is not answering: try the next one
+                    Thread.sleep(2000);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    break outer;
                 }
-                lastPrompt = attempt.transcript();
-                lastAnswer = reply.text();
-                try {
-                    Decision d = DecisionParser.parse(reply.text(), obs);
-                    router.success(client, reply);
-                    lastTrace = new BrainTrace("llm:" + client.name(), reply.model(), lastPrompt, reply.text(),
-                            router.now() - start, reply.inputTokens(), reply.outputTokens(), List.copyOf(failures));
-                    return d;
-                } catch (DecisionParser.InvalidAnswer e) {
-                    router.answeredBadly(client, reply);
-                    failures.add(client.name() + ": invalid answer: " + e.getMessage());
-                    attempt = attempt.withCorrection(reply.text(),
-                            "That answer cannot be used: " + e.getMessage()
-                                    + ". Reply again with ONLY the JSON object.");
-                }
+            } else {
+                break outer;
             }
         }
 

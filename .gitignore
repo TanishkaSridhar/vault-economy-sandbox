@@ -10,3 +10,4 @@ target/
 # API keys - never commit
 .env
 model-bench.csv
+.jdk/

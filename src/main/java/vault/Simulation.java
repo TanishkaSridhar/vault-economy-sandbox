@@ -104,7 +104,24 @@ public class Simulation {
 
         // ---- run the simulation ----
         for (int turn = 1; turn <= turns; turn++) {
+            long turnStart = System.currentTimeMillis();
             world.runTurn(turn);
+            if (router != null && turn < turns) {
+                // Pace turns so that the 60-second rate-limit sliding windows clear before the next turn
+                long elapsed = System.currentTimeMillis() - turnStart;
+                long minTurnMs = 45_000L;
+                if (elapsed < minTurnMs) {
+                    try {
+                        long sleepMs = minTurnMs - elapsed;
+                        System.out.printf("  [turn %d complete in %.1fs, pacing %ds for rate limits...]%n",
+                                turn, elapsed / 1000.0, sleepMs / 1000);
+                        Thread.sleep(sleepMs);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
+            }
         }
         log.endRun(turns);
 

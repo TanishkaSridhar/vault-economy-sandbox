@@ -177,7 +177,8 @@ public class LlmRouter {
         String name = client.name();
         Stats s = stats.get(name);
         s.errors++;
-        if (e.getKind() == LlmException.Kind.RATE_LIMIT) {
+        if (e.getKind() == LlmException.Kind.RATE_LIMIT
+                || (e.getMessage() != null && (e.getMessage().contains("429") || e.getMessage().toLowerCase().contains("rate limit")))) {
             // the provider is fine, just busy: rest it, do not switch it off
             s.rateLimited++;
             long seconds = e.getRetryAfterSeconds() != null ? e.getRetryAfterSeconds() : DEFAULT_REST_SECONDS;
