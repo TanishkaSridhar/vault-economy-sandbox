@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+:root {
+  --color-page-bg: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #fff8f0 100%);
+  --color-glass: rgba(255,255,255,0.65);
+  --color-glass-border: rgba(255,255,255,0.9);
+  --color-orange: #FF6B2C;
+  --color-orange-light: #FFE4D6;
+  --color-orange-dark: #D94F10;
+  --color-text: #1A1A2E;
+  --color-text-sub: #6B7280;
+  --font-main: 'Plus Jakarta Sans', sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-main), system-ui, sans-serif;
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #fff8f0 100%);
+  min-height: 100vh;
+  color: #1A1A2E;
+}
