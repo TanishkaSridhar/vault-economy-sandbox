@@ -84,6 +84,37 @@ export interface Decision {
   brain_used?: string
   model?: string
   latency_ms?: number
+  observation_json?: string
+  input_tokens?: number
+  output_tokens?: number
+  failures_json?: string
+}
+
+export interface DecisionPage {
+  rows: Decision[]
+  total: number
+  limit: number
+  offset: number
+}
+
+export interface DecisionFacets {
+  agents: string[]
+  actions: string[]
+  minTurn: number
+  maxTurn: number
+  total: number
+}
+
+export interface DecisionQuery {
+  limit?: number
+  offset?: number
+  q?: string
+  agent?: string
+  action?: string
+  success?: '0' | '1'
+  turn?: number
+  turnFrom?: number
+  turnTo?: number
 }
 
 export interface GameEvent {
@@ -142,10 +173,6 @@ export function useRunData(runId: number) {
     runId > NO_RUN ? `${BASE}/runs/${runId}/events` : null,
     fetcher, { revalidateOnFocus: false }
   )
-  const { data: decisions } = useSWR<Decision[]>(
-    runId > NO_RUN ? `${BASE}/runs/${runId}/decisions` : null,
-    fetcher, { revalidateOnFocus: false }
-  )
   const { data: relationships } = useSWR<Relationship[]>(
     runId > NO_RUN ? `${BASE}/runs/${runId}/relationships` : null,
     fetcher, { revalidateOnFocus: false }
@@ -160,10 +187,43 @@ export function useRunData(runId: number) {
     agentStates: agentStates ?? [],
     townStates: townStates ?? [],
     events: events ?? [],
-    decisions: decisions ?? [],
     relationships: relationships ?? [],
     isLoading,
   }
+}
+
+const objFetcher = (url: string) => fetch(url).then(r => (r.ok ? r.json() : null)).catch(() => null)
+
+function queryString(q: DecisionQuery): string {
+  const p = new URLSearchParams()
+  for (const [k, v] of Object.entries(q)) {
+    if (v !== undefined && v !== null && v !== '' && v !== 'All') p.set(k, String(v))
+  }
+  return p.toString()
+}
+
+/** One server-side page of decisions (newest first) matching the filters. */
+export function useDecisions(runId: number, query: DecisionQuery) {
+  const { data, isLoading, error } = useSWR<DecisionPage | null>(
+    runId > NO_RUN ? `${BASE}/runs/${runId}/decisions?${queryString(query)}` : null,
+    objFetcher, { revalidateOnFocus: false, keepPreviousData: true }
+  )
+  return { rows: data?.rows ?? [], total: data?.total ?? 0, isLoading, error }
+}
+
+/** All decisions made in one turn (at most one per agent, so never truncated). */
+export function useTurnDecisions(runId: number, turn: number) {
+  const { rows } = useDecisions(runId, { turn, limit: 500 })
+  return rows
+}
+
+/** Distinct agents/actions and turn range for the filter controls. */
+export function useDecisionFacets(runId: number) {
+  const { data } = useSWR<DecisionFacets | null>(
+    runId > NO_RUN ? `${BASE}/runs/${runId}/decisions/facets` : null,
+    objFetcher, { revalidateOnFocus: false }
+  )
+  return data ?? { agents: [], actions: [], minTurn: 0, maxTurn: 0, total: 0 }
 }
 
 // Convenience: get agent states for a specific turn

@@ -1,49 +1,58 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { PageHeader } from '../layout/PageHeader'
 import { useTurn } from '../../hooks/useTurn'
-import { useRunData } from '../../hooks/useSimData'
+import { useDecisions, useDecisionFacets } from '../../hooks/useSimData'
 
 const ACTION_ICONS: Record<string, string> = {
   FARM: '🌾', BUY: '🛒', SELL: '💰', TRAVEL: '🛤️', REST: '😴',
   FARM_AND_SELL: '🌾', WAIT: '⏳',
 }
 
+// Keyed by run so paging and filters reset when the run changes
 export function Decisions() {
+  const { runId } = useTurn()
+  return <DecisionsView key={runId} />
+}
+
+function DecisionsView() {
   const { turn, runId } = useTurn()
-  const { decisions, isLoading } = useRunData(runId)
+  const facets = useDecisionFacets(runId)
   const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [filterAgent, setFilterAgent] = useState('All')
   const [filterAction, setFilterAction] = useState('All')
+  const [filterResult, setFilterResult] = useState<'All' | '1' | '0'>('All')
+  const [turnFrom, setTurnFrom] = useState('')
+  const [turnTo, setTurnTo] = useState('')
   const [expandedId, setExpandedId] = useState<number | null>(null)
   const [page, setPage] = useState(0)
   const pageSize = 25
 
-  const agentNames = useMemo(() => ['All', ...Array.from(new Set(decisions.map(d => d.agent))).sort()], [decisions])
-  const actions = useMemo(() => ['All', ...Array.from(new Set(decisions.map(d => d.action))).sort()], [decisions])
+  // Debounce typing so we don't hit the bridge on every keystroke
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search.trim()); setPage(0) }, 300)
+    return () => clearTimeout(t)
+  }, [search])
 
-  const filtered = useMemo(() => {
-    let d = decisions
-    if (filterAgent !== 'All') d = d.filter(x => x.agent === filterAgent)
-    if (filterAction !== 'All') d = d.filter(x => x.action === filterAction)
-    if (search) {
-      const q = search.toLowerCase()
-      d = d.filter(x =>
-        x.agent.toLowerCase().includes(q) ||
-        x.action.toLowerCase().includes(q) ||
-        (x.reason ?? '').toLowerCase().includes(q) ||
-        (x.result ?? '').toLowerCase().includes(q)
-      )
-    }
-    return d.sort((a, b) => b.turn - a.turn || (b.id - a.id))
-  }, [decisions, filterAgent, filterAction, search])
-
-  const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize)
-  const totalPages = Math.ceil(filtered.length / pageSize)
+  const { rows: paginated, total, isLoading } = useDecisions(runId, {
+    limit: pageSize,
+    offset: page * pageSize,
+    q: debouncedSearch,
+    agent: filterAgent,
+    action: filterAction,
+    success: filterResult === 'All' ? undefined : filterResult,
+    turnFrom: turnFrom === '' ? undefined : Number(turnFrom),
+    turnTo: turnTo === '' ? undefined : Number(turnTo),
+  })
+  const totalPages = Math.max(1, Math.ceil(total / pageSize))
+  const agentNames = ['All', ...facets.agents]
+  const actions = ['All', ...facets.actions]
+  const filtersActive = total !== facets.total
 
   return (
     <div>
-      <PageHeader title="Decisions" subtitle={`${filtered.length} decisions logged`} />
+      <PageHeader title="Decisions" subtitle={`${facets.total} decisions logged`} />
 
       {/* Filters */}
       <GlassCard style={{ padding: 16, marginBottom: 16, display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -51,7 +60,7 @@ export function Decisions() {
           type="text"
           placeholder="Search reason, result, agent…"
           value={search}
-          onChange={e => { setSearch(e.target.value); setPage(0) }}
+          onChange={e => setSearch(e.target.value)}
           style={{
             flex: 1, minWidth: 200, padding: '8px 14px', borderRadius: 12, fontSize: 13,
             border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)',
@@ -66,7 +75,25 @@ export function Decisions() {
           style={{ padding: '8px 12px', borderRadius: 12, fontSize: 12, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontFamily: 'inherit' }}>
           {actions.map(a => <option key={a}>{a}</option>)}
         </select>
-        <div style={{ fontSize: 12, color: '#9CA3AF' }}>{filtered.length} results</div>
+        <select aria-label="Filter by result" value={filterResult} onChange={e => { setFilterResult(e.target.value as 'All' | '1' | '0'); setPage(0) }}
+          style={{ padding: '8px 12px', borderRadius: 12, fontSize: 12, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', cursor: 'pointer', fontFamily: 'inherit' }}>
+          <option value="All">All results</option>
+          <option value="1">OK</option>
+          <option value="0">Failed</option>
+        </select>
+        <label style={{ fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+          Turns
+          <input type="number" aria-label="From turn" placeholder={String(facets.minTurn)} min={facets.minTurn} max={facets.maxTurn}
+            value={turnFrom} onChange={e => { setTurnFrom(e.target.value); setPage(0) }}
+            style={{ width: 56, padding: '7px 8px', borderRadius: 10, fontSize: 12, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', fontFamily: 'inherit' }} />
+          –
+          <input type="number" aria-label="To turn" placeholder={String(facets.maxTurn)} min={facets.minTurn} max={facets.maxTurn}
+            value={turnTo} onChange={e => { setTurnTo(e.target.value); setPage(0) }}
+            style={{ width: 56, padding: '7px 8px', borderRadius: 10, fontSize: 12, border: '1px solid rgba(0,0,0,0.1)', background: 'rgba(255,255,255,0.8)', fontFamily: 'inherit' }} />
+        </label>
+        <div style={{ fontSize: 12, color: '#9CA3AF' }} data-testid="decision-count">
+          {filtersActive ? `${total} of ${facets.total}` : total} results
+        </div>
       </GlassCard>
 
       {/* Table */}
@@ -79,7 +106,7 @@ export function Decisions() {
         }}>
           <div>Turn</div><div>Agent</div><div>Action</div><div>Town</div><div>Reason</div><div>Result</div>
         </div>
-        {isLoading ? (
+        {isLoading && paginated.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>Loading…</div>
         ) : paginated.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No decisions match your filters.</div>

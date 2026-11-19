@@ -7,7 +7,7 @@ import { TickBar } from '../ui/TickBar'
 import { TabSwitch } from '../ui/TabSwitch'
 import { WorldCanvas } from '../world/WorldCanvas'
 import { useTurn } from '../../hooks/useTurn'
-import { useRunData, getTownStatesAtTurn, getAgentStatesAtTurn, getEventsUpToTurn } from '../../hooks/useSimData'
+import { useRunData, useTurnDecisions, getTownStatesAtTurn, getAgentStatesAtTurn, getEventsUpToTurn } from '../../hooks/useSimData'
 import { useState, useMemo } from 'react'
 
 const TOWN_NAMES = ['Riverton', 'Valley', 'Port', 'Woodhaven', 'Saltmarsh', 'Hill', 'Sandreach', 'Highpeak']
@@ -17,7 +17,8 @@ const PRICE_MAX = 17
 export function Overview() {
   const navigate = useNavigate()
   const { turn, runId, maxTurn } = useTurn()
-  const { towns, agentStates, townStates, events, decisions, relationships, isLoading } = useRunData(runId)
+  const { towns, agentStates, townStates, events, relationships, isLoading } = useRunData(runId)
+  const currentTurnDecisions = useTurnDecisions(runId, turn)
   const [activeTab, setActiveTab] = useState('Live')
   const [selectedTown, setSelectedTown] = useState<string | null>(null)
 
@@ -73,10 +74,6 @@ export function Overview() {
   const condTownPrev = townStates.find(t => t.town === condTownName && t.turn === Math.max(1, turn - 1))
 
   // Agent states with role for 3D map
-  const currentTurnDecisions = useMemo(
-    () => decisions.filter(d => d.turn === turn),
-    [decisions, turn]
-  )
   const prevTurnAgentStates = useMemo(
     () => getAgentStatesAtTurn(agentStates, Math.max(0, turn - 1)),
     [agentStates, turn]

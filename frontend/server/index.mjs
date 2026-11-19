@@ -119,18 +119,100 @@ app.get('/api/runs/:runId/town-states', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
+// ---- Decisions: server-side paging, search and filters ----
+const DECISIONS_MAX_LIMIT = 500
+
+function intParam(v, { min, max, fallback }) {
+  if (v === undefined || v === '') return fallback
+  const n = Number(v)
+  if (!Number.isInteger(n)) return fallback
+  return Math.max(min, Math.min(max, n))
+}
+
+/** Parse and bound the decision query string. Unknown/invalid values are ignored. */
+function parseDecisionQuery(q) {
+  const str = v => (typeof v === 'string' && v !== '' && v !== 'All' ? v.slice(0, 200) : null)
+  const turn = intParam(q.turn, { min: 0, max: 1e6, fallback: null })
+  return {
+    limit: intParam(q.limit, { min: 1, max: DECISIONS_MAX_LIMIT, fallback: 50 }),
+    offset: intParam(q.offset, { min: 0, max: 1e9, fallback: 0 }),
+    q: str(q.q),
+    agent: str(q.agent),
+    action: str(q.action),
+    success: q.success === '1' ? 1 : q.success === '0' ? 0 : null,
+    turnFrom: turn ?? intParam(q.turnFrom, { min: 0, max: 1e6, fallback: null }),
+    turnTo: turn ?? intParam(q.turnTo, { min: 0, max: 1e6, fallback: null }),
+  }
+}
+
+/** Build a parameterised WHERE clause for the decisions table. */
+function decisionWhere(runId, f) {
+  const clauses = ['run_id = ?']
+  const args = [runId]
+  if (f.agent) { clauses.push('agent = ?'); args.push(f.agent) }
+  if (f.action) { clauses.push('action = ?'); args.push(f.action) }
+  if (f.success !== null) { clauses.push('success = ?'); args.push(f.success) }
+  if (f.turnFrom !== null) { clauses.push('turn >= ?'); args.push(f.turnFrom) }
+  if (f.turnTo !== null) { clauses.push('turn <= ?'); args.push(f.turnTo) }
+  if (f.q) {
+    clauses.push("(agent LIKE ? ESCAPE '\\' OR action LIKE ? ESCAPE '\\' OR reason LIKE ? ESCAPE '\\' OR result LIKE ? ESCAPE '\\')")
+    const like = '%' + f.q.replace(/[\\%_]/g, c => '\\' + c) + '%'
+    args.push(like, like, like, like)
+  }
+  return { sql: clauses.join(' AND '), args }
+}
+
+/** Same filter for the in-memory demo rows. */
+function demoDecisionFilter(rows, f) {
+  const q = f.q?.toLowerCase()
+  return rows.filter(d =>
+    (!f.agent || d.agent === f.agent) &&
+    (!f.action || d.action === f.action) &&
+    (f.success === null || Number(d.success) === f.success) &&
+    (f.turnFrom === null || d.turn >= f.turnFrom) &&
+    (f.turnTo === null || d.turn <= f.turnTo) &&
+    (!q || [d.agent, d.action, d.reason, d.result].some(s => (s ?? '').toLowerCase().includes(q)))
+  )
+}
+
+// Newest first: GET /api/runs/:runId/decisions?limit&offset&q&agent&action&success&turn&turnFrom&turnTo
+// Response: { rows, total, limit, offset }
 app.get('/api/runs/:runId/decisions', (req, res) => {
-  const page = parseInt(req.query.page || '0', 10)
-  const limit = parseInt(req.query.limit || '50', 10)
-  const offset = page * limit
+  const f = parseDecisionQuery(req.query)
   if (usingDemo) {
-    const rows = demoRunFilter(req.params.runId, getDemo().decisions)
-    return res.json(rows.slice(offset, offset + limit))
+    const all = demoDecisionFilter(demoRunFilter(req.params.runId, getDemo().decisions), f)
+      .sort((a, b) => b.turn - a.turn || b.id - a.id)
+    return res.json({ rows: all.slice(f.offset, f.offset + f.limit), total: all.length, limit: f.limit, offset: f.offset })
   }
   try {
-    res.json(db.prepare(
-      'SELECT * FROM decisions WHERE run_id = ? ORDER BY id LIMIT ? OFFSET ?'
-    ).all(req.params.runId, limit, offset))
+    const w = decisionWhere(req.params.runId, f)
+    const total = db.prepare(`SELECT COUNT(*) AS c FROM decisions WHERE ${w.sql}`).get(...w.args).c
+    const rows = db.prepare(
+      `SELECT * FROM decisions WHERE ${w.sql} ORDER BY turn DESC, id DESC LIMIT ? OFFSET ?`
+    ).all(...w.args, f.limit, f.offset)
+    res.json({ rows, total, limit: f.limit, offset: f.offset })
+  } catch (e) { res.status(500).json({ error: e.message }) }
+})
+
+// Distinct values for the Decisions page filters (not derived from a truncated page)
+app.get('/api/runs/:runId/decisions/facets', (req, res) => {
+  if (usingDemo) {
+    const rows = demoRunFilter(req.params.runId, getDemo().decisions)
+    const turns = rows.map(r => r.turn)
+    return res.json({
+      agents: [...new Set(rows.map(r => r.agent))].sort(),
+      actions: [...new Set(rows.map(r => r.action))].sort(),
+      minTurn: turns.length ? Math.min(...turns) : 0,
+      maxTurn: turns.length ? Math.max(...turns) : 0,
+      total: rows.length,
+    })
+  }
+  try {
+    const id = req.params.runId
+    const agents = db.prepare('SELECT DISTINCT agent FROM decisions WHERE run_id = ? ORDER BY agent').all(id).map(r => r.agent)
+    const actions = db.prepare('SELECT DISTINCT action FROM decisions WHERE run_id = ? ORDER BY action').all(id).map(r => r.action)
+    const t = db.prepare('SELECT MIN(turn) AS minTurn, MAX(turn) AS maxTurn, COUNT(*) AS total FROM decisions WHERE run_id = ?').get(id)
+    res.json({ agents, actions, minTurn: t.minTurn ?? 0, maxTurn: t.maxTurn ?? 0, total: t.total })
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
