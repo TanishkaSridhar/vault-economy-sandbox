@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { Map, Building2, Users, TrendingUp, List } from 'lucide-react'
+import { Map, Building2, Users, TrendingUp, List, Zap } from 'lucide-react'
+import { useSettings } from '../../hooks/useSettings'
 
 const NAV_ITEMS = [
   { icon: Map, label: 'Overview', page: 'Overview' },
@@ -16,6 +17,7 @@ interface SideRailProps {
 
 export function SideRail({ activePage, onPageChange }: SideRailProps) {
   const [tooltip, setTooltip] = useState<string | null>(null)
+  const { lowGraphics, toggleLowGraphics } = useSettings()
 
   return (
     <div style={{
@@ -95,6 +97,34 @@ export function SideRail({ activePage, onPageChange }: SideRailProps) {
           </div>
         )
       })}
+      {/* Low graphics toggle at the bottom */}
+      <div style={{ marginTop: 'auto', position: 'relative' }}>
+        <button
+          onClick={toggleLowGraphics}
+          onMouseEnter={() => setTooltip('Low Graphics')}
+          onMouseLeave={() => setTooltip(null)}
+          title="Toggle low graphics"
+          style={{
+            width: 40, height: 40, borderRadius: 12, border: 'none', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: lowGraphics ? 'rgba(255,107,44,0.15)' : 'transparent',
+            color: lowGraphics ? '#FF6B2C' : '#9CA3AF',
+            transition: 'all 0.15s ease',
+          }}
+        >
+          <Zap size={16} />
+        </button>
+        {tooltip === 'Low Graphics' && (
+          <div style={{
+            position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)',
+            background: '#1A1A2E', color: '#fff', padding: '4px 10px',
+            borderRadius: 8, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
+            pointerEvents: 'none', zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+          }}>
+            {lowGraphics ? '⚡ Low Graphics ON' : '⚡ Low Graphics OFF'}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
