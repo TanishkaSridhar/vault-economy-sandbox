@@ -5,11 +5,10 @@ import { RingGauge } from '../ui/RingGauge'
 import { DotMatrixChart } from '../ui/DotMatrixChart'
 import { TickBar } from '../ui/TickBar'
 import { TabSwitch } from '../ui/TabSwitch'
-import { PageHeader } from '../layout/PageHeader'
 import { WorldCanvas } from '../world/WorldCanvas'
 import { useTurn } from '../../hooks/useTurn'
 import { useRunData, getTownStatesAtTurn, getAgentStatesAtTurn, getEventsUpToTurn } from '../../hooks/useSimData'
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo } from 'react'
 
 const TOWN_NAMES = ['Riverton', 'Valley', 'Port', 'Woodhaven', 'Saltmarsh', 'Hill', 'Sandreach', 'Highpeak']
 const PRICE_MIN = 4
@@ -18,7 +17,7 @@ const PRICE_MAX = 17
 export function Overview() {
   const navigate = useNavigate()
   const { turn, runId, maxTurn } = useTurn()
-  const { agents, towns, agentStates, townStates, events, decisions, relationships, isLoading } = useRunData(runId)
+  const { towns, agentStates, townStates, events, decisions, relationships, isLoading } = useRunData(runId)
   const [activeTab, setActiveTab] = useState('Live')
   const [selectedTown, setSelectedTown] = useState<string | null>(null)
 

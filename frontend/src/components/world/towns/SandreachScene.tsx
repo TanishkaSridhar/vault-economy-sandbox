@@ -46,11 +46,11 @@ function ChewingCamel({ position }: { position: [number, number, number] }) {
   )
 }
 
-interface SandreachSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface SandreachSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function SandreachScene({ price, stock, agentStates = [] }: SandreachSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#ffe8c0" fogNear={18} fogFar={55} sunColor="#ffe090" sunPosition={[12, 18, 2]} ambientIntensity={0.85}agentStates={agentStates}>
+    <TownSceneBase fogColor="#ffe8c0" fogNear={18} fogFar={55} sunColor="#ffe090" sunPosition={[12, 18, 2]} ambientIntensity={0.85} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 0.8, 0]} />
       {/* Sand dunes */}
       <mesh position={[-2.5, -0.2, 0.5]} castShadow>

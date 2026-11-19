@@ -3,7 +3,7 @@ import { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { TownSceneBase, WaterPlane, ParticleSystem, MarketStall } from './TownSceneBase'
+import { TownSceneBase, ParticleSystem, MarketStall } from './TownSceneBase'
 import { useSettings } from '../../../hooks/useSettings'
 import type { AgentState } from '../../../hooks/useSimData'
 
@@ -32,11 +32,11 @@ function DuckBob({ position }: { position: [number, number, number] }) {
   )
 }
 
-interface RivertonSceneProps { price?: number; stock?: number; agentCount?: number agentStates?: AgentState[] }
+interface RivertonSceneProps { price?: number; stock?: number; agentCount?: number; agentStates?: AgentState[] }
 export function RivertonScene({ price, stock, agentStates = [] }: RivertonSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#d0eeff" sunColor="#ffe8cc" ambientIntensity={0.65}agentStates={agentStates}>
+    <TownSceneBase fogColor="#d0eeff" sunColor="#ffe8cc" ambientIntensity={0.65} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 1, 0]} />
       {/* River */}
       <mesh position={[0, 0.03, 0.5]} rotation={[-Math.PI/2, 0, 0]}>
@@ -66,7 +66,7 @@ export function RivertonScene({ price, stock, agentStates = [] }: RivertonSceneP
       </mesh>
       <RotatingWheel position={[-1.42, 0.5, 0.2]} />
       {/* Reeds */}
-      {[[0.8,0,1.5],[1.1,0,0.3],[-0.3,0,1.8],[0.3,0,1.6]].map(([x,y,z],i) => (
+      {[[0.8,0,1.5],[1.1,0,0.3],[-0.3,0,1.8],[0.3,0,1.6]].map(([x,,z],i) => (
         <mesh key={i} position={[x as number, 0.4+i*0.05, z as number]} castShadow>
           <cylinderGeometry args={[0.025,0.03,0.8,4]} />
           <meshStandardMaterial color="#558B2F" />

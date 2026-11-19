@@ -45,11 +45,11 @@ function LighthouseBeam({ position }: { position: [number, number, number] }) {
   return <pointLight ref={ref} position={position} intensity={0.8} color="#FF6B2C" distance={12} />
 }
 
-interface PortSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface PortSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function PortScene({ price, stock, agentStates = [] }: PortSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#c8dfff" sunColor="#e8f4ff" sunPosition={[8,16,6]} ambientIntensity={0.6}agentStates={agentStates}>
+    <TownSceneBase fogColor="#c8dfff" sunColor="#e8f4ff" sunPosition={[8,16,6]} ambientIntensity={0.6} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 1, 0]} />
       {/* Ocean */}
       <mesh position={[0, -0.05, 1.5]} rotation={[-Math.PI/2, 0, 0]}>

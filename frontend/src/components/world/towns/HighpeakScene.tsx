@@ -1,13 +1,10 @@
 // Highpeak — mountains: snowy peaks, drifting snow, pine trees, cold blue-white light
-import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
-import * as THREE from 'three'
 import { TownSceneBase, PineTree, ParticleSystem, MarketStall } from './TownSceneBase'
 import { useSettings } from '../../../hooks/useSettings'
 import type { AgentState } from '../../../hooks/useSimData'
 
-interface HighpeakSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface HighpeakSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function HighpeakScene({ price, stock, agentStates = [] }: HighpeakSceneProps) {
   const { lowGraphics } = useSettings()
   return (
@@ -18,6 +15,7 @@ export function HighpeakScene({ price, stock, agentStates = [] }: HighpeakSceneP
       sunColor="#d0e8ff"
       sunPosition={[6, 20, 4]}
       ambientIntensity={0.6}
+      agentStates={agentStates}
     >
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 1.5, 0]} />
       {/* Main peak */}

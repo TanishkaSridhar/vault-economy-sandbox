@@ -73,8 +73,8 @@ export function Runs() {
   const [compareId, setCompareId] = useState<number | null>(null)
 
   // Data for active run KPIs
-  const { agents: activeAgents, agentStates: activeStates, events: activeEvents } = useRunData(runId)
-  const { agents: compAgents, agentStates: compStates, events: compEvents } = useRunData(compareId ?? 0)
+  const { agentStates: activeStates, events: activeEvents } = useRunData(runId)
+  const { agentStates: compStates, events: compEvents } = useRunData(compareId ?? 0)
 
   const computeKPIs = (agentStates: any[], events: any[], maxTurn: number) => {
     const lastStates = agentStates.filter(s => s.turn === maxTurn)

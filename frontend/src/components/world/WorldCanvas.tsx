@@ -15,28 +15,6 @@ interface WorldCanvasProps {
   style?: React.CSSProperties
 }
 
-function LoadingFallback() {
-  return (
-    <div
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        height: '100%',
-        background: 'rgba(255,255,255,0.4)',
-        borderRadius: 20,
-        fontFamily: "'Plus Jakarta Sans', sans-serif",
-        fontSize: 14,
-        color: '#6B7280',
-        flexDirection: 'column',
-        gap: 12,
-      }}
-    >
-      <div style={{ fontSize: 32 }}>🌍</div>
-      <div>Loading 3D world…</div>
-    </div>
-  )
-}
 
 export function WorldCanvas({
   onTownClick,

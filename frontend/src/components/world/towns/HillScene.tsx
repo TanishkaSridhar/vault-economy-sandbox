@@ -43,7 +43,7 @@ function WanderingSheep({ startPos }: { startPos: [number, number, number] }) {
         <meshStandardMaterial color="#FAFAFA" />
       </mesh>
       {/* Legs */}
-      {[[-0.08,0,-0.07],[0.08,0,-0.07],[-0.08,0,0.07],[0.08,0,0.07]].map(([x,y,z],i)=>(
+      {[[-0.08,0,-0.07],[0.08,0,-0.07],[-0.08,0,0.07],[0.08,0,0.07]].map(([x,,z],i)=>(
         <mesh key={i} position={[x,0.03,z]}>
           <boxGeometry args={[0.04,0.1,0.04]} />
           <meshStandardMaterial color="#212121" />
@@ -53,11 +53,11 @@ function WanderingSheep({ startPos }: { startPos: [number, number, number] }) {
   )
 }
 
-interface HillSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface HillSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function HillScene({ price, stock, agentStates = [] }: HillSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#d8f0d0" sunColor="#ffee80" ambientIntensity={0.75}agentStates={agentStates}>
+    <TownSceneBase fogColor="#d8f0d0" sunColor="#ffee80" ambientIntensity={0.75} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 1, 0]} />
       {/* Rolling hill hemispheres */}
       <mesh position={[-2.5, -0.1, -1]} castShadow>

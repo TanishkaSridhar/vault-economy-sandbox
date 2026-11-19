@@ -30,11 +30,11 @@ function ChimneySmoke({ position }: { position: [number, number, number] }) {
   )
 }
 
-interface WoodhavenSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface WoodhavenSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function WoodhavenScene({ price, stock, agentStates = [] }: WoodhavenSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#c8dfc8" sunColor="#ffe0a0" ambientIntensity={0.55}agentStates={agentStates}>
+    <TownSceneBase fogColor="#c8dfc8" sunColor="#ffe0a0" ambientIntensity={0.55} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 1, 0]} />
       {/* Dense trees */}
       <PineTree position={[-2.5, 0, -1]} scale={1.1} />

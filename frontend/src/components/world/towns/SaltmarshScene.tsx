@@ -1,15 +1,14 @@
 // Saltmarsh — marsh: shallow water, reed beds, wooden boardwalk, mist, dragonflies
 import { OrbitControls } from '@react-three/drei'
-import * as THREE from 'three'
-import { TownSceneBase, WaterPlane, ParticleSystem, MarketStall } from './TownSceneBase'
+import { TownSceneBase, ParticleSystem, MarketStall } from './TownSceneBase'
 import { useSettings } from '../../../hooks/useSettings'
 import type { AgentState } from '../../../hooks/useSimData'
 
-interface SaltmarshSceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface SaltmarshSceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function SaltmarshScene({ price, stock, agentStates = [] }: SaltmarshSceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#c8e0d8" fogNear={12} fogFar={40} sunColor="#d8ffe8" sunPosition={[6,14,4]} ambientIntensity={0.55}agentStates={agentStates}>
+    <TownSceneBase fogColor="#c8e0d8" fogNear={12} fogFar={40} sunColor="#d8ffe8" sunPosition={[6,14,4]} ambientIntensity={0.55} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 0.5, 0]} />
       {/* Marsh water */}
       <mesh position={[0, 0.02, 0.5]} rotation={[-Math.PI/2, 0, 0]}>
@@ -17,14 +16,14 @@ export function SaltmarshScene({ price, stock, agentStates = [] }: SaltmarshScen
         <meshStandardMaterial color="#4DB6AC" transparent opacity={0.6} roughness={0.2} />
       </mesh>
       {/* Reeds clusters */}
-      {[[-1.5,0,0.8],[1.2,0,0.3],[0.3,0,1.6],[-0.5,0,1.9],[2.0,0,1.2],[-2.2,0,1.0]].map(([x,y,z],i) => (
+      {[[-1.5,0,0.8],[1.2,0,0.3],[0.3,0,1.6],[-0.5,0,1.9],[2.0,0,1.2],[-2.2,0,1.0]].map(([x,,z],i) => (
         <mesh key={i} position={[x as number, 0.45, z as number]} castShadow>
           <cylinderGeometry args={[0.025+i*0.005, 0.03, 0.9, 4]} />
           <meshStandardMaterial color={i%2===0 ? '#558B2F' : '#33691E'} />
         </mesh>
       ))}
       {/* Reed tops (fluffy) */}
-      {[[-1.5,0,0.8],[1.2,0,0.3],[0.3,0,1.6]].map(([x,y,z],i) => (
+      {[[-1.5,0,0.8],[1.2,0,0.3],[0.3,0,1.6]].map(([x,,z],i) => (
         <mesh key={i} position={[x as number, 0.95, z as number]}>
           <cylinderGeometry args={[0.05, 0.02, 0.18, 6]} />
           <meshStandardMaterial color="#A1887F" />

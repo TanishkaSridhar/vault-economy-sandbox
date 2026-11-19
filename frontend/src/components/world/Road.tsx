@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { TERRAIN_COLOURS, TERRAIN_EMISSIVE } from './worldData'
@@ -36,17 +36,16 @@ export function Road({ from, to, terrain, lowGraphics }: RoadProps) {
     matRef.current.emissiveIntensity = 0.2 + Math.sin(clock.elapsedTime * 1.5) * 0.15
   })
 
-  if (lowGraphics) {
+  const simpleLine = useMemo(() => {
+    if (!lowGraphics) return null
+    const geo = new THREE.BufferGeometry().setFromPoints(curve.getPoints(10))
+    return new THREE.Line(geo, new THREE.LineBasicMaterial({ color }))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lowGraphics, color, from[0], from[2], to[0], to[2]])
+
+  if (simpleLine) {
     // Simple line for low graphics
-    const points = curve.getPoints(10)
-    const positions = new Float32Array(points.flatMap(p => [p.x, p.y, p.z]))
-    const geo = new THREE.BufferGeometry()
-    geo.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-    return (
-      <line geometry={geo}>
-        <lineBasicMaterial color={color} linewidth={2} />
-      </line>
-    )
+    return <primitive object={simpleLine} />
   }
 
   return (

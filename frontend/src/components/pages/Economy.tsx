@@ -1,11 +1,10 @@
 import { useMemo, useState } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { PageHeader } from '../layout/PageHeader'
-import { Sparkline } from '../ui/Sparkline'
 import { useTurn } from '../../hooks/useTurn'
 import { useRunData } from '../../hooks/useSimData'
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, AreaChart, Area
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts'
 
 const TOWN_COLORS = ['#FF6B2C','#4FC3F7','#81C784','#E91E63','#9C27B0','#FF9800','#607D8B','#00BCD4']

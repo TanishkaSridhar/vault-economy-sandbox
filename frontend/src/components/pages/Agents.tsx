@@ -5,14 +5,7 @@ import { Badge } from '../ui/Badge'
 import { Sparkline } from '../ui/Sparkline'
 import { TickBar } from '../ui/TickBar'
 import { useTurn } from '../../hooks/useTurn'
-import { useRunData, getTownStatesAtTurn, getAgentStatesAtTurn } from '../../hooks/useSimData'
-
-const CHARACTER_ASSIGNMENTS: Record<string, string> = {
-  Meena:   '1-1', Kumar:  '1-2', Selvi:  '1-3', Ganesh: '1-4',
-  Lakshmi: '1-5', Anita:  '2-1', Murugan:'2-2', Devi:   '2-3',
-  Ravi:    '2-4', Arun:   '2-5', Joseph: '3-1', Kavya:  '3-2',
-  Farah:   '3-3', Priya:  '3-4', Vikram: '3-5', Nisha:  '4-1',
-}
+import { useRunData, getAgentStatesAtTurn } from '../../hooks/useSimData'
 
 const ROLE_COLOURS = {
   Farmer: { bg: 'rgba(76,175,80,0.1)', border: 'rgba(76,175,80,0.3)', text: '#2E7D32' },
@@ -22,7 +15,7 @@ const ROLE_COLOURS = {
 
 export function Agents() {
   const { turn, runId } = useTurn()
-  const { agents, agentStates, isLoading } = useRunData(runId)
+  const { agents, agentStates } = useRunData(runId)
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
   const [sortBy, setSortBy] = useState<'money' | 'name' | 'role'>('money')
 

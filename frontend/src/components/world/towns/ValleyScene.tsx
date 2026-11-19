@@ -46,11 +46,11 @@ function WheatField({ position }: { position: [number, number, number] }) {
   )
 }
 
-interface ValleySceneProps { price?: number; stock?: number agentStates?: AgentState[] }
+interface ValleySceneProps { price?: number; stock?: number; agentStates?: AgentState[] }
 export function ValleyScene({ price, stock, agentStates = [] }: ValleySceneProps) {
   const { lowGraphics } = useSettings()
   return (
-    <TownSceneBase fogColor="#fff8e0" sunColor="#fffde0" sunPosition={[12, 18, 8]} ambientIntensity={0.8}agentStates={agentStates}>
+    <TownSceneBase fogColor="#fff8e0" sunColor="#fffde0" sunPosition={[12, 18, 8]} ambientIntensity={0.8} agentStates={agentStates}>
       <OrbitControls enablePan={false} minDistance={6} maxDistance={18} target={[0, 0.8, 0]} />
       {/* Wheat fields */}
       <WheatField position={[-1.5, 0, -1.5]} />

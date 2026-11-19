@@ -1,7 +1,6 @@
 import { useState, useMemo } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { PageHeader } from '../layout/PageHeader'
-import { Badge } from '../ui/Badge'
 import { useTurn } from '../../hooks/useTurn'
 import { useRunData } from '../../hooks/useSimData'
 
@@ -12,7 +11,7 @@ const ACTION_ICONS: Record<string, string> = {
 
 export function Decisions() {
   const { turn, runId } = useTurn()
-  const { agents, decisions, isLoading } = useRunData(runId)
+  const { decisions, isLoading } = useRunData(runId)
   const [search, setSearch] = useState('')
   const [filterAgent, setFilterAgent] = useState('All')
   const [filterAction, setFilterAction] = useState('All')
@@ -85,7 +84,6 @@ export function Decisions() {
         ) : paginated.length === 0 ? (
           <div style={{ padding: 32, textAlign: 'center', color: '#9CA3AF' }}>No decisions match your filters.</div>
         ) : paginated.map(d => {
-          const agent = agents.find(a => a.name === d.agent)
           const isExpanded = expandedId === d.id
           return (
             <div key={d.id}>

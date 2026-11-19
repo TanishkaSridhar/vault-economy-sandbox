@@ -4,7 +4,7 @@ import * as THREE from 'three'
 import { TownIsland } from './TownIsland'
 import { Road } from './Road'
 import { Agent3D } from './Agent3D'
-import { TOWN_POSITIONS, ROAD_DATA, ROLE_COLOURS } from './worldData'
+import { TOWN_POSITIONS, ROAD_DATA } from './worldData'
 import { useSettings } from '../../hooks/useSettings'
 import type { AgentState } from '../../hooks/useSimData'
 
@@ -47,7 +47,6 @@ export function WorldMapScene({
   townMeta = [],
   decisions = [],
   relationships = [],
-  turn = 0,
 }: WorldMapSceneProps) {
   const { lowGraphics } = useSettings()
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)

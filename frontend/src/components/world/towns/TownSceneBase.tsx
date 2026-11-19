@@ -88,7 +88,7 @@ interface ParticleSystemProps {
 }
 export function ParticleSystem({ count = 30, color = '#a5d6a7', size = 0.06, spread = 5, speed = 0.4, emissive = false }: ParticleSystemProps) {
   const pointsRef = useRef<THREE.Points>(null)
-  const positions = useRef<Float32Array>(() => {
+  const positions = useRef<Float32Array>((() => {
     const arr = new Float32Array(count * 3)
     for (let i = 0; i < count; i++) {
       arr[i * 3]     = (Math.random() - 0.5) * spread * 2
@@ -96,7 +96,7 @@ export function ParticleSystem({ count = 30, color = '#a5d6a7', size = 0.06, spr
       arr[i * 3 + 2] = (Math.random() - 0.5) * spread * 2
     }
     return arr
-  })
+  })())
   const offsets = useRef<Float32Array>(new Float32Array(count).map(() => Math.random() * Math.PI * 2))
 
   useFrame(({ clock }) => {
@@ -126,8 +126,7 @@ export function ParticleSystem({ count = 30, color = '#a5d6a7', size = 0.06, spr
         size={size}
         transparent
         opacity={emissive ? 0.9 : 0.7}
-        emissive={emissive ? color : undefined}
-        emissiveIntensity={emissive ? 1 : 0}
+        toneMapped={!emissive}
         sizeAttenuation
       />
     </points>
@@ -175,7 +174,7 @@ interface MarketStallProps {
   stock?: number
   position?: [number, number, number]
 }
-export function MarketStall({ price, stock, position = [0, 0, 0] }: MarketStallProps) {
+export function MarketStall({ position = [0, 0, 0] }: MarketStallProps) {
   return (
     <group position={position}>
       {/* Table */}

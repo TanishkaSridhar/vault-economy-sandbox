@@ -14,7 +14,7 @@
  * - Click → opens AgentCard popover, camera follows
  */
 import { useRef, useState, useMemo, useCallback } from 'react'
-import { useFrame, useThree } from '@react-three/fiber'
+import { useFrame, type ThreeEvent, useThree } from '@react-three/fiber'
 import { Html, Billboard, ContactShadows, useTexture } from '@react-three/drei'
 import * as THREE from 'three'
 import { getCharacter, ROLE_COLORS, ROLE_ICONS } from './characterData'
@@ -104,7 +104,6 @@ export function Agent3D({
   agentState,
   position,
   isTravelling = false,
-  travelProgress = 0.5,
   isHungry = false,
   madeProfit = false,
   didTrade = false,
@@ -139,8 +138,8 @@ export function Agent3D({
   }
 
   const handleClick = useCallback(
-    (e: THREE.Event) => {
-      e.stopPropagation?.()
+    (e: ThreeEvent<MouseEvent>) => {
+      e.stopPropagation()
       setCardOpen(v => !v)
       onSelect?.(agentState.agent)
     },

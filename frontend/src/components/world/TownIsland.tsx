@@ -121,7 +121,7 @@ function TownLandmark({ terrain, palette }: { terrain: string; palette: typeof T
             <meshStandardMaterial color={palette.landmark} transparent opacity={0.6} />
           </mesh>
           {/* Reeds */}
-          {[[-0.5, 0, 0.3], [0.4, 0, -0.2], [0.2, 0, 0.6], [-0.3, 0, -0.4]].map(([x, y, z], i) => (
+          {[[-0.5, 0, 0.3], [0.4, 0, -0.2], [0.2, 0, 0.6], [-0.3, 0, -0.4]].map(([x, , z], i) => (
             <mesh key={i} position={[x as number, 0.4, z as number]} castShadow>
               <cylinderGeometry args={[0.025, 0.03, 0.8, 4]} />
               <meshStandardMaterial color="#558B2F" />
@@ -212,7 +212,7 @@ function TownLandmark({ terrain, palette }: { terrain: string; palette: typeof T
   }
 }
 
-export function TownIsland({ name, terrain, position, currentPrice, currentStock, onClick }: TownIslandProps) {
+export function TownIsland({ name, terrain, position, currentPrice, onClick }: TownIslandProps) {
   const [hovered, setHovered] = useState(false)
   const groupRef = useRef<THREE.Group>(null)
   const targetY = useRef(position[1])
