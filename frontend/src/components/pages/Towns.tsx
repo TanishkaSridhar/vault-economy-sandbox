@@ -4,8 +4,8 @@ import { GlassCard } from '../ui/GlassCard'
 import { PageHeader } from '../layout/PageHeader'
 import { Badge } from '../ui/Badge'
 import { useTurn } from '../../hooks/useTurn'
-import { useRunData, getTownStatesAtTurn, getAgentStatesAtTurn } from '../../hooks/useSimData'
-import { TownDetailCanvas } from '../world/TownDetailCanvas'
+import { useRunData, useTurnDecisions, getTownStatesAtTurn, getAgentStatesAtTurn } from '../../hooks/useSimData'
+import { CozyWorld } from '../world/cozy/CozyWorld'
 
 const TERRAIN_ICONS: Record<string, string> = {
   RIVER: '🌊', PLAINS: '🌾', COAST: '⚓', FOREST: '🌲',
@@ -21,7 +21,8 @@ export function Towns() {
   const urlTown = searchParams.get('town')
   const [selectedTown, setSelectedTown] = useState<string | null>(urlTown)
   const { turn, runId } = useTurn()
-  const { towns, agents, agentStates, townStates, isLoading } = useRunData(runId)
+  const { towns, agents, roads, agentStates, townStates, isLoading } = useRunData(runId)
+  const turnDecisions = useTurnDecisions(runId, turn)
 
   const currentTownStates = getTownStatesAtTurn(townStates, turn)
   const currentAgentStates = getAgentStatesAtTurn(agentStates, turn)
@@ -86,8 +87,18 @@ export function Towns() {
         {selectedTown && detailTown && (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, minWidth: 0 }}>
             {/* 3D diorama */}
-            <GlassCard style={{ padding: 0, overflow: 'hidden', height: 300 }}>
-              <TownDetailCanvas townName={selectedTown} price={detailState?.price} stock={detailState?.stock} style={{ height: 300 }} />
+            <GlassCard style={{ padding: 0, overflow: 'hidden', height: 420 }}>
+              <CozyWorld
+                agents={agents}
+                towns={towns}
+                roads={roads}
+                agentStates={agentStates}
+                townStates={townStates}
+                decisions={turnDecisions}
+                focusTown={selectedTown}
+                onTownClick={setSelectedTown}
+                showLegend={false}
+              />
             </GlassCard>
 
             {/* Info row */}

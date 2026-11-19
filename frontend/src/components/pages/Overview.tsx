@@ -5,7 +5,7 @@ import { RingGauge } from '../ui/RingGauge'
 import { DotMatrixChart } from '../ui/DotMatrixChart'
 import { TickBar } from '../ui/TickBar'
 import { TabSwitch } from '../ui/TabSwitch'
-import { WorldCanvas } from '../world/WorldCanvas'
+import { CozyWorld } from '../world/cozy/CozyWorld'
 import { useTurn } from '../../hooks/useTurn'
 import { useRunData, useTurnDecisions, getTownStatesAtTurn, getAgentStatesAtTurn, getEventsUpToTurn } from '../../hooks/useSimData'
 import { useState, useMemo } from 'react'
@@ -17,7 +17,7 @@ const PRICE_MAX = 17
 export function Overview() {
   const navigate = useNavigate()
   const { turn, runId, maxTurn } = useTurn()
-  const { towns, agentStates, townStates, events, relationships, isLoading } = useRunData(runId)
+  const { agents, towns, roads, agentStates, townStates, events, isLoading } = useRunData(runId)
   const currentTurnDecisions = useTurnDecisions(runId, turn)
   const [activeTab, setActiveTab] = useState('Live')
   const [selectedTown, setSelectedTown] = useState<string | null>(null)
@@ -73,30 +73,19 @@ export function Overview() {
   const condTown = currentTownStates.find(t => t.town === condTownName)
   const condTownPrev = townStates.find(t => t.town === condTownName && t.turn === Math.max(1, turn - 1))
 
-  // Agent states with role for 3D map
-  const prevTurnAgentStates = useMemo(
-    () => getAgentStatesAtTurn(agentStates, Math.max(0, turn - 1)),
-    [agentStates, turn]
-  )
-  const currentRelationships = useMemo(
-    () => relationships.filter(r => r.turn === turn),
-    [relationships, turn]
-  )
 
   return (
     <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 64px - 80px)', overflow: 'hidden' }}>
       {/* Left: 3D World */}
       <div style={{ flex: '0 0 60%', height: '100%', minHeight: 400 }}>
-        <WorldCanvas
+        <CozyWorld
+          agents={agents}
+          towns={towns}
+          roads={roads}
+          agentStates={agentStates}
+          townStates={townStates}
+          decisions={currentTurnDecisions}
           onTownClick={(name) => navigate(`/towns?town=${name}`)}
-          agentStates={currentAgentStates}
-          prevAgentStates={prevTurnAgentStates}
-          townStates={currentTownStates.map(t => ({ town: t.town, price: t.price, stock: t.stock }))}
-          townMeta={towns.map(t => ({ name: t.name, terrain: t.terrain }))}
-          decisions={currentTurnDecisions as any}
-          relationships={currentRelationships as any}
-          turn={turn}
-          style={{ height: '100%' }}
         />
       </div>
 

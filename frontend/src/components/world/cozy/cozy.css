@@ -1,0 +1,173 @@
+/* Hand-drawn cozy UI for in-world labels (matches the reference: cream cards, brown ink, Itim). */
+:root {
+  --cz-font: 'Itim', 'Plus Jakarta Sans', system-ui, sans-serif;
+  --cz-cream: #fffaf0;
+  --cz-ink: #6b4a32;
+  --cz-ink-soft: #9a7a5e;
+  --cz-line: #ecdcc0;
+  --cz-yellow: #f7c75b;
+  --cz-yellow-shade: #dfa23e;
+  --cz-coral: #ee7a52;
+  --cz-green: #6c9a35;
+  --cz-red: #d9573f;
+  --cz-shadow: 0 3px 0 rgba(107, 74, 50, 0.18), 0 8px 18px rgba(107, 74, 50, 0.16);
+}
+
+.cz-town {
+  font-family: var(--cz-font);
+  background: var(--cz-cream);
+  color: var(--cz-ink);
+  border: 2px solid var(--cz-line);
+  border-radius: 16px;
+  padding: 5px 11px 6px;
+  box-shadow: var(--cz-shadow);
+  text-align: center;
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: transform 0.15s ease;
+}
+.cz-town.is-hover { transform: scale(1.1); border-color: var(--cz-yellow); }
+.cz-town-name { font-size: 16px; line-height: 1.1; display: flex; gap: 4px; align-items: center; justify-content: center; }
+.cz-town-stats { display: flex; gap: 4px; justify-content: center; margin-top: 3px; }
+
+.cz-chip, .cz-pill {
+  font-family: var(--cz-font);
+  font-size: 12px;
+  line-height: 1;
+  padding: 3px 7px;
+  border-radius: 999px;
+  background: #f6ead2;
+  color: var(--cz-ink);
+  white-space: nowrap;
+}
+.cz-chip.up { background: #e3f0cf; color: var(--cz-green); }
+.cz-chip.down { background: #fbe0d6; color: var(--cz-red); }
+
+.cz-role {
+  font-family: var(--cz-font);
+  font-size: 11px;
+  line-height: 1;
+  padding: 3px 7px 4px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 255, 255, 0.9);
+  box-shadow: 0 2px 0 rgba(107, 74, 50, 0.2);
+  display: flex;
+  gap: 3px;
+  align-items: center;
+  white-space: nowrap;
+  user-select: none;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.cz-role.is-dim { opacity: 0.35; }
+.cz-role.is-selected { transform: scale(1.15); }
+.cz-hungry { margin-left: 2px; }
+
+.cz-card {
+  font-family: var(--cz-font);
+  position: relative;
+  width: 250px;
+  background: var(--cz-cream);
+  color: var(--cz-ink);
+  border: 2px solid var(--cz-line);
+  border-radius: 20px;
+  padding: 12px 14px 12px;
+  box-shadow: var(--cz-shadow);
+  transform: translateY(-50%);
+  cursor: default;
+}
+.cz-card::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -9px;
+  width: 16px;
+  height: 16px;
+  background: var(--cz-cream);
+  border-right: 2px solid var(--cz-line);
+  border-bottom: 2px solid var(--cz-line);
+  transform: translateX(-50%) rotate(45deg);
+}
+.cz-close {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  background: var(--cz-coral);
+  color: #fff;
+  font-size: 13px;
+  cursor: pointer;
+  box-shadow: 0 2px 0 rgba(107, 74, 50, 0.25);
+}
+.cz-close:focus-visible { outline: 3px solid var(--cz-yellow); outline-offset: 2px; }
+.cz-card-name { font-size: 22px; text-align: center; line-height: 1.1; }
+.cz-card-sub { display: flex; gap: 5px; justify-content: center; flex-wrap: wrap; margin: 6px 0 9px; }
+.cz-decision {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  background: #fdf1d9;
+  border-radius: 14px;
+  padding: 8px 10px;
+}
+.cz-decision-icon { font-size: 20px; line-height: 1; }
+.cz-decision-verb { font-size: 15px; line-height: 1.15; }
+.cz-decision-detail { color: var(--cz-ink-soft); font-size: 13px; }
+.cz-reason { font-size: 12.5px; color: var(--cz-ink-soft); margin-top: 3px; line-height: 1.25; }
+.cz-result { margin-left: auto; font-size: 13px; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; flex: none; }
+.cz-result.ok { background: var(--cz-green); }
+.cz-result.fail { background: var(--cz-red); }
+.cz-outcome { font-size: 12px; color: var(--cz-ink-soft); margin: 7px 2px 0; line-height: 1.25; }
+.cz-stats { display: flex; gap: 5px; flex-wrap: wrap; justify-content: center; margin-top: 9px; }
+
+/* map overlay controls (legend, reset) */
+.cz-overlay {
+  position: absolute;
+  font-family: var(--cz-font);
+  background: var(--cz-cream);
+  color: var(--cz-ink);
+  border: 2px solid var(--cz-line);
+  border-radius: 16px;
+  box-shadow: var(--cz-shadow);
+  padding: 8px 10px;
+  font-size: 13px;
+}
+.cz-btn {
+  font-family: var(--cz-font);
+  font-size: 14px;
+  color: var(--cz-ink);
+  background: var(--cz-yellow);
+  border: none;
+  border-radius: 12px;
+  padding: 5px 12px 6px;
+  box-shadow: 0 3px 0 var(--cz-yellow-shade);
+  cursor: pointer;
+}
+.cz-btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--cz-yellow-shade); }
+.cz-btn:focus-visible { outline: 3px solid var(--cz-coral); outline-offset: 2px; }
+.cz-legend-row { display: flex; gap: 6px; align-items: center; margin: 3px 0; }
+
+/* label overlay: one absolutely positioned layer above the canvas */
+.cz-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
+.cz-anchor { position: absolute; left: 0; top: 0; will-change: transform; visibility: hidden; }
+.cz-anchor > * { transform-origin: 50% 100%; pointer-events: auto; }
+.cz-role { cursor: pointer; }
+.cz-card { transform: none; margin-bottom: 10px; }
+
+/* villager portraits (Agents / Towns pages) */
+.cz-portrait {
+  border-radius: 50%;
+  border: 3px solid #fffaf0;
+  box-shadow: 0 2px 0 rgba(107, 74, 50, 0.18), 0 6px 14px rgba(107, 74, 50, 0.14);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+  font-family: var(--cz-font);
+  margin: 0 auto;
+  position: relative;
+}
+.cz-portrait { position: relative; }
+.cz-portrait img { position: absolute; width: 150%; height: 150%; left: -25%; top: -1%; max-width: none; }
