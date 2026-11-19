@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import { createRequire } from 'module'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 import { buildDemoData } from './demo-data.mjs'
 
@@ -17,8 +18,11 @@ const DB_PATH = process.env.VAULT_DB_PATH
   ? path.resolve(process.env.VAULT_DB_PATH)
   : path.resolve(__dirname, '..', '..', 'vault.db')
 
+// How often (ms) a request may re-check the db file; requests in between reuse the last answer
+const SOURCE_CHECK_MS = Math.max(0, Number(process.env.VAULT_SOURCE_CHECK_MS ?? 3000))
+
 let db = null
-let usingDemo = false
+let usingDemo = true
 let demoData = null
 
 function getDemo() {
@@ -26,23 +30,110 @@ function getDemo() {
   return demoData
 }
 
-// Try opening live DB
+// better-sqlite3 is a native module; if it fails to load we stay in demo mode for good
+let Database = null
+let driverError = null
 try {
-  const Database = require('better-sqlite3')
-  db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
-  const runCount = db.prepare('SELECT COUNT(*) as c FROM runs').get()
-  if (!runCount || runCount.c === 0) {
-    console.log('[VAULT bridge] vault.db has no runs — using demo data')
-    db.close()
-    db = null
-    usingDemo = true
-  } else {
-    console.log(`[VAULT bridge] Connected to vault.db (${runCount.c} run(s))`)
-  }
+  Database = require('better-sqlite3')
 } catch (e) {
-  console.log(`[VAULT bridge] vault.db not available (${e.message}) — using demo data`)
-  usingDemo = true
+  driverError = e.message
+  console.log(`[VAULT bridge] better-sqlite3 failed to load (${e.message}) — demo mode only`)
 }
+
+// ---- Live/demo source, re-checked per request (cached for SOURCE_CHECK_MS) ----
+const source = {
+  checkedAt: 0,      // when we last looked at the file
+  fingerprint: null, // mtime+size of vault.db and its -wal file at the last (re)open
+  mtimeMs: null,     // newest modification time seen
+  runCount: 0,
+  reason: 'not checked yet',
+}
+
+/** mtime/size of the db and its WAL file, or null if the db file is missing. */
+function statDb() {
+  let main
+  try { main = fs.statSync(DB_PATH) } catch { return null }
+  let wal = null
+  try { wal = fs.statSync(DB_PATH + '-wal') } catch { /* no WAL file */ }
+  return {
+    mtimeMs: Math.max(main.mtimeMs, wal?.mtimeMs ?? 0),
+    key: `${main.mtimeMs}:${main.size}:${wal?.mtimeMs ?? 0}:${wal?.size ?? 0}`,
+  }
+}
+
+function closeDb() {
+  if (db) { try { db.close() } catch { /* already closed */ } }
+  db = null
+}
+
+function setSource(demo, reason) {
+  const changed = demo !== usingDemo || reason !== source.reason
+  usingDemo = demo
+  source.reason = reason
+  if (changed) console.log(`[VAULT bridge] Source: ${demo ? 'DEMO' : 'LIVE'} (${reason})`)
+}
+
+/** Re-evaluate live vs demo. Cheap when nothing changed: one or two stat() calls. */
+function refreshSource(force = false) {
+  const now = Date.now()
+  if (!force && now - source.checkedAt < SOURCE_CHECK_MS) return
+  source.checkedAt = now
+
+  if (!Database) return setSource(true, `better-sqlite3 unavailable: ${driverError}`)
+
+  const st = statDb()
+  if (!st) {
+    closeDb(); source.fingerprint = null; source.mtimeMs = null; source.runCount = 0
+    return setSource(true, 'vault.db not found')
+  }
+  if (st.key === source.fingerprint) { // unchanged since last check
+    if (!usingDemo && !db) openDb()     // closed while idle: reopen the same file
+    return
+  }
+  source.fingerprint = st.key
+  source.mtimeMs = st.mtimeMs
+
+  // New or changed file: reopen read-only (handles a replaced file as well as appended runs)
+  closeDb()
+  try {
+    openDb()
+    source.runCount = db.prepare('SELECT COUNT(*) AS c FROM runs').get().c
+    if (source.runCount === 0) { closeDb(); return setSource(true, 'vault.db has no runs') }
+    setSource(false, `vault.db with ${source.runCount} run(s)`)
+  } catch (e) {
+    closeDb(); source.runCount = 0
+    setSource(true, `vault.db not readable: ${e.message}`)
+  }
+}
+
+function openDb() {
+  db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
+}
+
+// Windows locks an open SQLite file, which would stop the simulation from deleting or
+// replacing vault.db. So the connection is closed after a short idle period and reopened
+// on the next request.
+const IDLE_CLOSE_MS = Math.max(200, Number(process.env.VAULT_IDLE_CLOSE_MS ?? 1500))
+let idleTimer = null
+let inFlight = 0
+
+refreshSource(true)
+closeDb() // nothing to serve yet
+app.use('/api', (req, res, next) => {
+  clearTimeout(idleTimer)
+  inFlight++
+  res.on('close', () => {
+    if (--inFlight === 0) idleTimer = setTimeout(closeDb, IDLE_CLOSE_MS)
+  })
+  try {
+    refreshSource()
+    if (!usingDemo && !db) openDb()
+  } catch (e) {
+    closeDb(); source.fingerprint = null
+    setSource(true, `vault.db not readable: ${e.message}`)
+  }
+  next()
+})
 
 // ---- Helper ----
 function demoRunFilter(runId, arr) {
@@ -53,10 +144,14 @@ function demoRunFilter(runId, arr) {
 // ---- Routes ----
 
 app.get('/api/meta', (req, res) => {
-  if (usingDemo) {
-    return res.json({ source: 'demo', dbPath: DB_PATH })
-  }
-  res.json({ source: 'live', dbPath: DB_PATH })
+  res.json({
+    source: usingDemo ? 'demo' : 'live',
+    dbPath: DB_PATH,
+    reason: source.reason,
+    dbModifiedAt: source.mtimeMs ? new Date(source.mtimeMs).toISOString() : null,
+    runCount: usingDemo ? getDemo().runs.length : source.runCount,
+    checkedAt: new Date(source.checkedAt).toISOString(),
+  })
 })
 
 app.get('/api/runs', (req, res) => {
@@ -248,8 +343,7 @@ app.get('/api/runs/:runId/relationships', (req, res) => {
   } catch (e) { res.status(500).json({ error: e.message }) }
 })
 
-const PORT = 3001
+const PORT = Number(process.env.VAULT_PORT ?? 3001)
 app.listen(PORT, () => {
-  console.log(`[VAULT bridge] Listening on http://localhost:${PORT}`)
-  console.log(`[VAULT bridge] Source: ${usingDemo ? 'DEMO' : 'LIVE (vault.db)'}`)
+  console.log(`[VAULT bridge] Listening on http://localhost:${PORT} (db: ${DB_PATH})`)
 })
