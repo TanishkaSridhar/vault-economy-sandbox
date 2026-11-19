@@ -5,6 +5,7 @@ import { Badge } from '../ui/Badge'
 import { Sparkline } from '../ui/Sparkline'
 import { TickBar } from '../ui/TickBar'
 import { useTurn } from '../../hooks/useTurn'
+import { Portrait, PortraitRenderer } from '../world/cozy/Portraits'
 import { useRunData, getAgentStatesAtTurn } from '../../hooks/useSimData'
 
 const ROLE_COLOURS = {
@@ -52,6 +53,7 @@ export function Agents() {
 
   return (
     <div>
+      <PortraitRenderer names={agents.map(a => a.name)} />
       <PageHeader
         title="Agents"
         subtitle="All 16 simulation agents"
@@ -99,14 +101,9 @@ export function Agents() {
                     </span>
                     <Badge role={agent.role as any} size="sm" />
                   </div>
-                  {/* Avatar circle */}
-                  <div style={{
-                    width: 48, height: 48, borderRadius: '50%', margin: '0 auto 8px',
-                    background: `linear-gradient(135deg, ${roleStyle.border}, ${roleStyle.text})`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: 20, fontWeight: 800, color: '#fff', boxShadow: '0 2px 8px rgba(0,0,0,0.12)',
-                  }}>
-                    {agent.name.charAt(0)}
+                  {/* Villager portrait */}
+                  <div style={{ marginBottom: 8 }}>
+                    <Portrait name={agent.name} role={agent.role} size={60} />
                   </div>
                   <div style={{ textAlign: 'center' }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>{agent.name}</div>
@@ -139,13 +136,8 @@ export function Agents() {
             <GlassCard style={{ padding: 20, position: 'sticky', top: 0 }}>
               {/* Header */}
               <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div style={{
-                  width: 64, height: 64, borderRadius: '50%', margin: '0 auto 10px',
-                  background: `linear-gradient(135deg, ${ROLE_COLOURS[selectedAgentData.role as keyof typeof ROLE_COLOURS]?.border ?? '#aaa'}, ${ROLE_COLOURS[selectedAgentData.role as keyof typeof ROLE_COLOURS]?.text ?? '#888'})`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 28, fontWeight: 800, color: '#fff',
-                }}>
-                  {selectedAgentData.name.charAt(0)}
+                <div style={{ marginBottom: 10 }}>
+                  <Portrait name={selectedAgentData.name} role={selectedAgentData.role} size={88} />
                 </div>
                 <div style={{ fontSize: 20, fontWeight: 800, color: '#1A1A2E' }}>{selectedAgentData.name}</div>
                 <Badge role={selectedAgentData.role as any} size="md" />
