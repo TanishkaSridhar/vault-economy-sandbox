@@ -11,3 +11,13 @@ target/
 .env
 model-bench.csv
 .jdk/
+
+# Local env variants (keep the example)
+.env.*
+!.env.example
+
+# Node / build output / logs (anywhere in the repo)
+node_modules/
+dist/
+logs/
+*.log
