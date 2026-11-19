@@ -1,0 +1,99 @@
+@import "tailwindcss";
+
+:root {
+  --color-orange: #FF6B2C;
+  --color-orange-light: #FFE4D6;
+  --color-orange-dark: #D94F10;
+  --color-text: #1A1A2E;
+  --color-text-sub: #6B7280;
+  --color-glass: rgba(255, 255, 255, 0.65);
+  --color-glass-border: rgba(255, 255, 255, 0.9);
+  --shadow-card: 0 8px 32px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.04);
+  --shadow-hover: 0 16px 48px rgba(0,0,0,0.12);
+  --radius-card: 20px;
+  --radius-pill: 999px;
+  --blur-glass: blur(16px);
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #fff8f0 100%);
+  min-height: 100vh;
+  color: #1A1A2E;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* Custom range input styling */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+input[type="range"]::-webkit-slider-track {
+  background: rgba(255,255,255,0.4);
+  height: 4px;
+  border-radius: 2px;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  background: #FF6B2C;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  margin-top: -5px;
+  box-shadow: 0 1px 4px rgba(255,107,44,0.4);
+}
+
+input[type="range"]::-moz-range-track {
+  background: rgba(255,255,255,0.4);
+  height: 4px;
+  border-radius: 2px;
+}
+
+input[type="range"]::-moz-range-thumb {
+  background: #FF6B2C;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  border: none;
+  box-shadow: 0 1px 4px rgba(255,107,44,0.4);
+}
+
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0,0,0,0.2);
+}
