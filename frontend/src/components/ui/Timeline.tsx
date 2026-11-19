@@ -31,8 +31,8 @@ export function Timeline() {
 
   // Update maxTurn from selected run
   useEffect(() => {
-    const run = runs.find(r => r.run_id === runId)
-    if (run?.turns) setMaxTurn(run.turns)
+    const run = runs.find(r => r.id === runId)
+    if (run?.turns_completed) setMaxTurn(Math.max(run.turns_completed, 1))
   }, [runs, runId])
 
   const SPEEDS = [0.5, 1, 2, 4]
@@ -167,8 +167,8 @@ export function Timeline() {
             }}
           >
             {runs.map(r => (
-              <option key={r.run_id} value={r.run_id}>
-                {r.name ?? `Run ${r.run_id}`}
+              <option key={r.id} value={r.id}>
+                Run #{r.id} (T{r.turns_completed})
               </option>
             ))}
           </select>

@@ -1,62 +1,181 @@
 import useSWR from 'swr'
 
-
-export interface SimData {
-  meta?: any
-  towns?: any[]
-  agents?: any[]
-  prices?: any[]
-  ledger?: any[]
-  decisions?: any[]
-}
+const BASE = '/api'
+const fetcher = (url: string) => fetch(url).then(r => r.ok ? r.json() : []).catch(() => [])
 
 export interface RunInfo {
+  id: number
+  started_at: string
+  finished_at?: string
+  seed: number
+  turns_planned: number
+  turns_completed: number
+  code_version?: string
+}
+
+export interface AgentMeta {
   run_id: number
-  name?: string
-  turns?: number
-  created_at?: string
+  name: string
+  role: string
+  brain: string
+  start_town: string
+  start_money: number
+  start_food: number
 }
 
-function buildSimData(results: any[], keys: string[]): SimData {
-  const out: any = {}
-  keys.forEach((k, i) => { out[k] = results[i] })
-  return out
+export interface TownMeta {
+  run_id: number
+  name: string
+  terrain: string
+  start_price: number
+  start_stock: number
 }
 
-export function useSimData(runId: number) {
-  const baseUrl = 'http://localhost:3001'
-  const endpoints = [
-    `/api/meta?run_id=${runId}`,
-    `/api/towns?run_id=${runId}`,
-    `/api/agents?run_id=${runId}`,
-    `/api/prices?run_id=${runId}`,
-    `/api/ledger?run_id=${runId}`,
-    `/api/decisions?run_id=${runId}`,
-  ]
+export interface Road {
+  run_id: number
+  town_a: string
+  town_b: string
+  distance: number
+  terrain: string
+  coins: number
+  food: number
+}
 
-  const { data, error, isLoading } = useSWR(
-    runId > 0 ? `sim-data-${runId}` : null,
-    async () => {
-      const results = await Promise.all(
-        endpoints.map(ep =>
-          fetch(baseUrl + ep)
-            .then(r => r.ok ? r.json() : null)
-            .catch(() => null)
-        )
-      )
-      return buildSimData(results, ['meta', 'towns', 'agents', 'prices', 'ledger', 'decisions'])
-    },
-    { refreshInterval: 5000, revalidateOnFocus: false }
-  )
+export interface AgentState {
+  run_id: number
+  turn: number
+  agent: string
+  town: string
+  money: number
+  food: number
+  destination?: string
+}
 
-  return { data, isLoading, error, source: 'api' as const }
+export interface TownState {
+  run_id: number
+  turn: number
+  town: string
+  price_before: number
+  price: number
+  stock: number
+  sold: number
+  bought: number
+}
+
+export interface Decision {
+  id: number
+  run_id: number
+  turn: number
+  agent: string
+  brain: string
+  action: string
+  amount?: number
+  target?: string
+  reason: string
+  success: number
+  result: string
+  town_before: string
+  town_after: string
+  money_before: number
+  money_after: number
+  food_before: number
+  food_after: number
+  brain_used?: string
+  model?: string
+  latency_ms?: number
+}
+
+export interface GameEvent {
+  id: number
+  run_id: number
+  turn: number
+  type: string
+  agent?: string
+  town?: string
+  message: string
+  data_json?: string
+}
+
+export interface Relationship {
+  run_id: number
+  turn: number
+  from_agent: string
+  to_agent: string
+  trust: number
+  familiarity: number
+  meetings: number
 }
 
 export function useRuns() {
   const { data, error, isLoading } = useSWR<RunInfo[]>(
-    'runs-list',
-    () => fetch('http://localhost:3001/api/runs').then(r => r.ok ? r.json() : []).catch(() => []),
-    { refreshInterval: 10000 }
+    `${BASE}/runs`,
+    fetcher,
+    { refreshInterval: 15000 }
   )
   return { runs: data ?? [], isLoading, error }
+}
+
+// Fetches the full dataset for a run (all agent states, town states, etc.)
+export function useRunData(runId: number) {
+  const { data: agents } = useSWR<AgentMeta[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/agents` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: towns } = useSWR<TownMeta[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/towns` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: roads } = useSWR<Road[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/roads` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: agentStates } = useSWR<AgentState[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/agent-states` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: townStates } = useSWR<TownState[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/town-states` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: events } = useSWR<GameEvent[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/events` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: decisions } = useSWR<Decision[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/decisions` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+  const { data: relationships } = useSWR<Relationship[]>(
+    runId > 0 ? `${BASE}/runs/${runId}/relationships` : null,
+    fetcher, { revalidateOnFocus: false }
+  )
+
+  const isLoading = !agents || !towns || !agentStates || !townStates
+
+  return {
+    agents: agents ?? [],
+    towns: towns ?? [],
+    roads: roads ?? [],
+    agentStates: agentStates ?? [],
+    townStates: townStates ?? [],
+    events: events ?? [],
+    decisions: decisions ?? [],
+    relationships: relationships ?? [],
+    isLoading,
+  }
+}
+
+// Convenience: get agent states for a specific turn
+export function getAgentStatesAtTurn(agentStates: AgentState[], turn: number): AgentState[] {
+  return agentStates.filter(s => s.turn === turn)
+}
+
+// Convenience: get town states for a specific turn
+export function getTownStatesAtTurn(townStates: TownState[], turn: number): TownState[] {
+  return townStates.filter(s => s.turn === turn)
+}
+
+// Convenience: get events up to a turn
+export function getEventsUpToTurn(events: GameEvent[], turn: number): GameEvent[] {
+  return events.filter(e => e.turn <= turn)
 }
