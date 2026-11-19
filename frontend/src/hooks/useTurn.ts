@@ -1,5 +1,8 @@
 import { create } from 'zustand'
 
+/** Sentinel for "no run selected yet". Run ids start at 0 (demo run is id 0). */
+export const NO_RUN = -1
+
 interface TurnState {
   turn: number
   maxTurn: number
@@ -22,7 +25,7 @@ export const useTurn = create<TurnState & TurnActions>((set, get) => ({
   maxTurn: 30,
   playing: false,
   speed: 1,
-  runId: 1,
+  runId: NO_RUN,
 
   setTurn: (n) => set({ turn: Math.max(1, Math.min(n, get().maxTurn)) }),
   play: () => set({ playing: true }),

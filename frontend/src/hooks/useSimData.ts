@@ -1,4 +1,5 @@
 import useSWR from 'swr'
+import { NO_RUN } from './useTurn'
 
 const BASE = '/api'
 const fetcher = (url: string) => fetch(url).then(r => r.ok ? r.json() : []).catch(() => [])
@@ -118,35 +119,35 @@ export function useRuns() {
 // Fetches the full dataset for a run (all agent states, town states, etc.)
 export function useRunData(runId: number) {
   const { data: agents } = useSWR<AgentMeta[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/agents` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/agents` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: towns } = useSWR<TownMeta[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/towns` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/towns` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: roads } = useSWR<Road[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/roads` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/roads` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: agentStates } = useSWR<AgentState[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/agent-states` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/agent-states` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: townStates } = useSWR<TownState[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/town-states` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/town-states` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: events } = useSWR<GameEvent[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/events` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/events` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: decisions } = useSWR<Decision[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/decisions` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/decisions` : null,
     fetcher, { revalidateOnFocus: false }
   )
   const { data: relationships } = useSWR<Relationship[]>(
-    runId > 0 ? `${BASE}/runs/${runId}/relationships` : null,
+    runId > NO_RUN ? `${BASE}/runs/${runId}/relationships` : null,
     fetcher, { revalidateOnFocus: false }
   )
 

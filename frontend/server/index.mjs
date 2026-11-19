@@ -12,7 +12,10 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const DB_PATH = path.resolve(__dirname, '..', '..', 'vault.db')
+// VAULT_DB_PATH overrides the default location (useful for testing demo mode)
+const DB_PATH = process.env.VAULT_DB_PATH
+  ? path.resolve(process.env.VAULT_DB_PATH)
+  : path.resolve(__dirname, '..', '..', 'vault.db')
 
 let db = null
 let usingDemo = false
@@ -26,7 +29,7 @@ function getDemo() {
 // Try opening live DB
 try {
   const Database = require('better-sqlite3')
-  db = new Database(DB_PATH, { readonly: true })
+  db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
   const runCount = db.prepare('SELECT COUNT(*) as c FROM runs').get()
   if (!runCount || runCount.c === 0) {
     console.log('[VAULT bridge] vault.db has no runs — using demo data')

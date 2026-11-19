@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { GlassCard } from '../ui/GlassCard'
 import { PageHeader } from '../layout/PageHeader'
-import { useTurn } from '../../hooks/useTurn'
+import { useTurn, NO_RUN } from '../../hooks/useTurn'
 import { useRuns, useRunData } from '../../hooks/useSimData'
 
 function RunCard({ run, isActive, onClick }: { run: any; isActive: boolean; onClick: () => void }) {
@@ -74,7 +74,7 @@ export function Runs() {
 
   // Data for active run KPIs
   const { agentStates: activeStates, events: activeEvents } = useRunData(runId)
-  const { agentStates: compStates, events: compEvents } = useRunData(compareId ?? 0)
+  const { agentStates: compStates, events: compEvents } = useRunData(compareId ?? NO_RUN)
 
   const computeKPIs = (agentStates: any[], events: any[], maxTurn: number) => {
     const lastStates = agentStates.filter(s => s.turn === maxTurn)
