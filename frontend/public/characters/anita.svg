@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="80" height="96" viewBox="0 0 80 96">
+  <rect width="80" height="96" rx="12" fill="#4CAF5022"/>
+  <!-- body -->
+  <ellipse cx="40" cy="62" rx="22" ry="28" fill="#4CAF50"/>
+  <!-- head -->
+  <circle cx="40" cy="30" r="20" fill="#ffe0b2"/>
+  <!-- eyes -->
+  <circle cx="33" cy="28" r="3" fill="#333"/>
+  <circle cx="47" cy="28" r="3" fill="#333"/>
+  <!-- smile -->
+  <path d="M33 36 Q40 42 47 36" stroke="#333" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <!-- role badge -->
+  <text x="40" y="92" text-anchor="middle" font-size="14" font-family="sans-serif">🌾</text>
+  <!-- name -->
+  <text x="40" y="12" text-anchor="middle" font-size="9" font-family="sans-serif" fill="#555">Anita</text>
+</svg>
