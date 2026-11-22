@@ -24,6 +24,8 @@ public class Agent {
     protected String destination;
     // the last market information this agent saw in each town (it cannot see far-away prices live)
     protected final Map<String, Observation.TownView> knownMarkets = new LinkedHashMap<>();
+    // what happened to this agent since its last turn (deals, rumours); shown in its next observation
+    protected final List<String> news = new ArrayList<>();
 
     /** A copy of the agent's state at a moment in time (used for before/after logging). */
     public record State(String town, double money, int food) {}
@@ -43,6 +45,21 @@ public class Agent {
     public Brain getBrain()     { return brain; }
     public String getDestination() { return destination; }
     public void setBrain(Brain brain) { this.brain = brain; }
+
+    /** Something this agent learns about; it reads it at the start of its next turn. */
+    public void tell(String message) {
+        news.add(message);
+    }
+
+    /** The news waiting for this agent. */
+    public List<String> getNews() {
+        return List.copyOf(news);
+    }
+
+    /** Called once the agent has read its news (after its observation is made). */
+    public void clearNews() {
+        news.clear();
+    }
 
     public String getRole() {
         return "Agent"; // overridden by subclasses
@@ -78,16 +95,43 @@ public class Agent {
                         world.getMap().coinCost(first), world.getMap().foodCost(first)));
             }
         }
+        SocialGraph social = world.getSocial();
         List<Observation.PersonView> people = new ArrayList<>();
         for (Agent other : world.getAgents()) {
             if (other != this && other.location == location) {
-                Relationship r = world.getSocial().get(name, other.name);
+                Relationship r = social.get(name, other.name);
                 people.add(new Observation.PersonView(other.name, other.getRole(),
-                        r.getTrust(), r.getFamiliarity(), r.getMeetings()));
+                        r.getTrust(), r.getFamiliarity(), r.getMeetings(),
+                        social.reputation(other.name), world.hasActed(other.name)));
             }
         }
+        List<Observation.OfferView> offers = new ArrayList<>();
+        for (Offer o : world.getMarket().openIn(location)) {
+            if (o.getSeller() == this) continue;
+            String seller = o.getSeller().getName();
+            offers.add(new Observation.OfferView(seller, o.getSeller().getRole(), o.getLeft(), o.getPrice(),
+                    social.get(name, seller).getTrust(), social.reputation(seller)));
+        }
         return new Observation(turn, name, getRole(), getMoney(), getFood(),
-                location.getName(), destination, roleStats(), towns, routes, people, allowedActions());
+                location.getName(), destination, roleStats(), towns, routes, people, allowedActions(),
+                offers, social.reputation(name), opinions(world), List.copyOf(news));
+    }
+
+    /** How many opinions an agent carries into a decision (keeps prompts short). */
+    static final int MAX_OPINIONS = 5;
+    /** Opinions closer to neutral than this are not worth mentioning. */
+    static final double OPINION_THRESHOLD = 0.15;
+
+    /** The people this agent feels most strongly about, strongest first. */
+    private List<Observation.OpinionView> opinions(World world) {
+        List<Observation.OpinionView> list = new ArrayList<>();
+        for (Relationship r : world.getSocial().from(name)) {
+            if (Math.abs(r.getTrust()) < OPINION_THRESHOLD) continue;
+            Agent other = world.findAgent(r.getTo());
+            list.add(new Observation.OpinionView(r.getTo(), r.getTrust(), other != null && other.location == location));
+        }
+        list.sort((a, b) -> Double.compare(Math.abs(b.trust()), Math.abs(a.trust())));
+        return list.size() > MAX_OPINIONS ? List.copyOf(list.subList(0, MAX_OPINIONS)) : list;
     }
 
     /** The actions this kind of agent can take. Subclasses add their own. */
@@ -124,39 +168,31 @@ public class Agent {
         return name + " has no food and goes hungry";
     }
 
-    protected Outcome buyFood(int amount) {
-        if (amount <= 0) {
-            return Outcome.failed(Action.BUY, "cannot buy " + amount + " food");
-        }
-        double price = location.getFoodPrice();
-        double cost = amount * price;
-        try {
-            wallet.spend(cost);
-            if (!location.giveFood(amount)) {
-                wallet.earn(cost); // refund if the town has no food
-                return Outcome.failed(Action.BUY, "tried to buy food but " + location.getName() + " has none left");
-            }
-            bag.add(amount);
-            return Outcome.ok("BOUGHT",
-                    "BOUGHT " + amount + " food at " + (int) price + " each in " + location.getName(),
-                    Map.of("qty", amount, "price", price, "cost", cost));
-        } catch (NotEnoughMoneyException e) {
-            return Outcome.failed(Action.BUY, "cannot afford food (" + e.getMessage() + ")");
-        }
+    /** Buy food in this town: the best offers on the board first, then the market. */
+    protected Marketplace.Purchase buyFood(int amount, String from, World world) {
+        return world.getMarket().buy(this, amount, from, world);
     }
 
-    protected Outcome sellFood(int amount) {
+    /**
+     * Put food on this town's offer board at an asking price (0 = the market price).
+     * The food leaves the bag now; the money comes when someone buys it, or tonight when
+     * the market buys whatever is left at its buying price.
+     */
+    protected Outcome sellFood(int amount, double askingPrice, World world) {
         if (amount <= 0 || !bag.remove(amount)) {
             return Outcome.failed(Action.SELL, name + " does not have enough food to sell");
         }
-        double price = location.getFoodPrice();
-        double earned = amount * price;
-        wallet.earn(earned);
-        location.receiveFood(amount);
-        return Outcome.ok("SOLD",
-                "SOLD " + amount + " food at " + (int) price + " each in " + location.getName(),
-                Map.of("qty", amount, "price", price, "revenue", earned));
+        double market = location.getFoodPrice();
+        double price = askingPrice <= 0 ? market : Math.max(1, Math.min(MAX_ASKING_PRICE, Math.round(askingPrice * 2) / 2.0));
+        Offer offer = world.getMarket().post(this, amount, price);
+        return Outcome.ok("OFFERED",
+                "OFFERED " + amount + " food at " + fmt(price) + " each in " + location.getName()
+                        + " (unsold food goes to the market at " + fmt(location.getBidPrice()) + " tonight)",
+                Map.of("qty", amount, "price", price, "marketPrice", market, "offerId", offer.getId()));
     }
+
+    /** The highest asking price allowed on an offer board (the market's own price never exceeds 20). */
+    static final double MAX_ASKING_PRICE = 25;
 
     /**
      * Travel toward a town along the cheapest route, ONE road per turn.
@@ -213,7 +249,7 @@ public class Agent {
         return Outcome.ok("TRAVELLED", msg.toString(), data);
     }
 
-    private static String fmt(double x) {
+    static String fmt(double x) {
         return x == Math.rint(x) ? String.valueOf((int) x) : String.format("%.1f", x);
     }
 

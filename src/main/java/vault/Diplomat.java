@@ -31,7 +31,7 @@ public class Diplomat extends Agent {
     public Outcome perform(Decision decision, World world) {
         switch (decision.action()) {
             case BUY:
-                return buyFood(decision.amount());
+                return buyFood(decision.amount(), decision.from(), world).outcome();
             case TRAVEL: {
                 Outcome travel = travelToward(decision.target(), world);
                 if (!travel.success()) return travel;

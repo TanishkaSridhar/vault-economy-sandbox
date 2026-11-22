@@ -64,7 +64,11 @@ CREATE TABLE IF NOT EXISTS decisions (
     latency_ms        INTEGER,                  -- time spent waiting for models on this decision
     input_tokens      INTEGER,
     output_tokens     INTEGER,
-    failures_json     TEXT                      -- failed attempts before the answer used (JSON list)
+    failures_json     TEXT,                     -- failed attempts before the answer used (JSON list)
+    price             REAL,                     -- SELL: asking price on the offer board (NULL = market price)
+    buy_from          TEXT,                     -- BUY: the seller the agent asked to buy from first
+    rumour_about      TEXT,                     -- who the agent gossiped about tonight (NULL = nobody)
+    rumour_good       INTEGER                   -- 1 = spoke well of them, 0 = spoke badly
 );
 
 -- Things that happened in the world. Memory, reputation and rumours (later steps)
@@ -102,6 +106,7 @@ CREATE TABLE IF NOT EXISTS agent_states (
     money        REAL    NOT NULL,
     food         INTEGER NOT NULL,
     destination  TEXT,                          -- where it is heading if part-way through a trip
+    reputation   REAL,                          -- what everyone else thinks of it, -1 .. +1
     PRIMARY KEY (run_id, turn, agent)
 );
 

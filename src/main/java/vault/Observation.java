@@ -8,7 +8,8 @@ import java.util.Map;
  * A brain receives ONLY this, never the World itself, so what an agent
  * can know is controlled in one place. Prices are only live for the town the
  * agent is in; for other towns it is the last price the agent saw there.
- * Later steps add memories, reputation and rumours to it.
+ * It also holds today's offer board in this town, the agent's own reputation, its strongest
+ * opinions of other people, and news since its last turn (deals, rumours it heard).
  *
  * @param turn       the current turn number
  * @param name       the agent's name
@@ -22,11 +23,16 @@ import java.util.Map;
  * @param routes      the cheapest route from here to every other reachable town
  * @param people      the other agents in the same town, and what this agent thinks of them
  * @param actions     the actions this agent's role allows
+ * @param offers      food other people are selling on this town's offer board right now
+ * @param reputation  what everyone else thinks of this agent, -1 .. +1
+ * @param opinions    the people this agent trusts or distrusts most (here or not), strongest first
+ * @param news        what happened to this agent since its last turn, in plain sentences
  */
 public record Observation(int turn, String name, String role, double money, int food,
                           String town, String destination, Map<String, Double> roleStats,
                           List<TownView> towns, List<RouteView> routes, List<PersonView> people,
-                          List<Action> actions) {
+                          List<Action> actions, List<OfferView> offers, double reputation,
+                          List<OpinionView> opinions, List<String> news) {
 
     /**
      * Another agent who is here, as seen by this agent.
@@ -34,8 +40,49 @@ public record Observation(int turn, String name, String role, double money, int 
      * @param trust        -1 .. +1
      * @param familiarity  0 (stranger) .. 1
      * @param meetings     turns spent in the same town so far
+     * @param reputation   what everyone else thinks of them, -1 .. +1
+     * @param actedToday   true if they have already taken their turn today (so they will not buy or sell again today)
      */
-    public record PersonView(String name, String role, double trust, double familiarity, int meetings) {}
+    public record PersonView(String name, String role, double trust, double familiarity, int meetings,
+                             double reputation, boolean actedToday) {}
+
+    /**
+     * Food someone is selling on this town's offer board.
+     *
+     * @param trust      this agent's trust in the seller
+     * @param reputation the seller's reputation
+     */
+    public record OfferView(String seller, String role, int quantity, double price, double trust, double reputation) {}
+
+    /** What this agent thinks of someone (who may be elsewhere). */
+    public record OpinionView(String name, double trust, boolean here) {}
+
+    /** True if the agent knows of someone by this name (someone here, or someone it has an opinion of). */
+    public boolean knows(String person) {
+        for (PersonView p : people) if (p.name().equalsIgnoreCase(person)) return true;
+        for (OpinionView o : opinions) if (o.name().equalsIgnoreCase(person)) return true;
+        return false;
+    }
+
+    /** The exact spelling of a known person's name, or null. */
+    public String knownName(String person) {
+        for (PersonView p : people) if (p.name().equalsIgnoreCase(person)) return p.name();
+        for (OpinionView o : opinions) if (o.name().equalsIgnoreCase(person)) return o.name();
+        return null;
+    }
+
+    /** The offer from a seller, or null. */
+    public OfferView offerFrom(String seller) {
+        for (OfferView o : offers) if (o.seller().equalsIgnoreCase(seller)) return o;
+        return null;
+    }
+
+    /** The cheapest price food can be bought for here: the market's, or a lower offer on the board. */
+    public double bestBuyPrice() {
+        double best = currentTown().foodPrice();
+        for (OfferView o : offers) best = Math.min(best, o.price());
+        return best;
+    }
 
     /**
      * What an agent knows about one town's market.

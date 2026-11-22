@@ -28,6 +28,13 @@ public class Town {
         this(name, Terrain.PLAINS, foodPrice, foodStock);
     }
 
+    /** What the market pays for food an agent sells to it: 1 coin under its selling price. */
+    public static double bid(double price) {
+        return Math.max(1, price - 1);
+    }
+
+    public double getBidPrice()  { return bid(foodPrice); }
+
     public String getName()      { return name; }
     public Terrain getTerrain()  { return terrain; }
     public double getFoodPrice() { return foodPrice; }

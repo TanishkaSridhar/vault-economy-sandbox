@@ -73,6 +73,12 @@ public class SqliteEventLog implements EventLog {
         for (String[] col : llmColumns) {
             addColumnIfMissing("decisions", col[0], col[1]);
         }
+        String[][] tradeColumns = {{"price", "REAL"}, {"buy_from", "TEXT"}, {"rumour_about", "TEXT"},
+                {"rumour_good", "INTEGER"}};
+        for (String[] col : tradeColumns) {
+            addColumnIfMissing("decisions", col[0], col[1]);
+        }
+        addColumnIfMissing("agent_states", "reputation", "REAL");
     }
 
     private void addColumnIfMissing(String table, String column, String type) throws SQLException {
@@ -175,8 +181,9 @@ public class SqliteEventLog implements EventLog {
         try (PreparedStatement ps = db.prepareStatement(
                 "INSERT INTO decisions (run_id, turn, agent, brain, observation_json, action, amount, target, reason,"
                         + " success, result, town_before, town_after, money_before, money_after, food_before, food_after,"
-                        + " brain_used, model, prompt, response, latency_ms, input_tokens, output_tokens, failures_json)"
-                        + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                        + " brain_used, model, prompt, response, latency_ms, input_tokens, output_tokens, failures_json,"
+                        + " price, buy_from, rumour_about, rumour_good)"
+                        + " VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 Statement.RETURN_GENERATED_KEYS)) {
             ps.setLong(1, runId);
             ps.setInt(2, turn);
@@ -207,6 +214,10 @@ public class SqliteEventLog implements EventLog {
                 if (trace.outputTokens() == null) ps.setNull(24, Types.INTEGER); else ps.setInt(24, trace.outputTokens());
                 ps.setString(25, trace.failures().isEmpty() ? null : toJson(trace.failures()));
             }
+            if (decision.price() > 0) ps.setDouble(26, decision.price()); else ps.setNull(26, Types.REAL);
+            ps.setString(27, decision.from());
+            ps.setString(28, decision.gossip() == null ? null : decision.gossip().about());
+            if (decision.gossip() == null) ps.setNull(29, Types.INTEGER); else ps.setInt(29, decision.gossip().good() ? 1 : 0);
             ps.executeUpdate();
             try (ResultSet keys = ps.getGeneratedKeys()) {
                 keys.next();
@@ -264,7 +275,8 @@ public class SqliteEventLog implements EventLog {
     public void endTurn(int turn, World world) {
         try {
             try (PreparedStatement ps = db.prepareStatement(
-                    "INSERT INTO agent_states (run_id, turn, agent, town, money, food, destination) VALUES (?,?,?,?,?,?,?)")) {
+                    "INSERT INTO agent_states (run_id, turn, agent, town, money, food, destination, reputation)"
+                            + " VALUES (?,?,?,?,?,?,?,?)")) {
                 for (Agent a : world.getAgents()) {
                     ps.setLong(1, runId);
                     ps.setInt(2, turn);
@@ -273,6 +285,7 @@ public class SqliteEventLog implements EventLog {
                     ps.setDouble(5, a.getMoney());
                     ps.setInt(6, a.getFood());
                     ps.setString(7, a.getDestination());
+                    ps.setDouble(8, world.getSocial().reputation(a.getName()));
                     ps.addBatch();
                 }
                 ps.executeBatch();

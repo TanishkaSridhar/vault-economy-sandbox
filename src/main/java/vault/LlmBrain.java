@@ -111,6 +111,6 @@ public class LlmBrain implements Brain {
         Decision d = fallback.decide(obs);
         lastTrace = new BrainTrace("rule-fallback", null, lastPrompt, lastAnswer, router.now() - start, null, null,
                 List.copyOf(failures));
-        return new Decision(d.action(), d.amount(), d.target(), "[rule fallback] " + d.reason());
+        return d.withReason("[rule fallback] " + d.reason());
     }
 }

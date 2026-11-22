@@ -45,14 +45,13 @@ public class Trader extends Agent {
     public Outcome perform(Decision decision, World world) {
         switch (decision.action()) {
             case SELL:
-                return sellFood(decision.amount());
+                return sellFood(decision.amount(), decision.price(), world);
             case BUY: {
-                double price = location.getFoodPrice();
-                Outcome result = buyFood(decision.amount());
-                if (result.success()) {
-                    lastBuyPrice = price;
+                Marketplace.Purchase bought = buyFood(decision.amount(), decision.from(), world);
+                if (bought.quantity() > 0) {
+                    lastBuyPrice = bought.averagePrice();
                 }
-                return result;
+                return bought.outcome();
             }
             case TRAVEL: {
                 return travelToward(decision.target(), world);

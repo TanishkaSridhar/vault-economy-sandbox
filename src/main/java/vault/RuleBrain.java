@@ -14,14 +14,28 @@ public class RuleBrain implements Brain {
         return "rule";
     }
 
+    /** The rule brain only gossips about someone it feels at least this strongly about, and always honestly. */
+    static final double GOSSIP_THRESHOLD = Agent.OPINION_THRESHOLD;
+
     @Override
     public Decision decide(Observation obs) {
+        Decision d;
         switch (obs.role()) {
-            case "Farmer":   return farmer(obs);
-            case "Trader":   return trader(obs);
-            case "Diplomat": return diplomat(obs);
-            default:         return Decision.rest("no rules for role " + obs.role());
+            case "Farmer":   d = farmer(obs); break;
+            case "Trader":   d = trader(obs); break;
+            case "Diplomat": d = diplomat(obs); break;
+            default:         d = Decision.rest("no rules for role " + obs.role());
         }
+        Gossip g = honestGossip(obs);
+        return g == null ? d : d.withGossip(g);
+    }
+
+    /** Tell the town what it really thinks of the person it feels most strongly about, if strongly enough. */
+    private Gossip honestGossip(Observation obs) {
+        for (Observation.OpinionView o : obs.opinions()) { // strongest first
+            if (Math.abs(o.trust()) >= GOSSIP_THRESHOLD) return new Gossip(o.name(), o.trust() > 0);
+        }
+        return null;
     }
 
     private Decision farmer(Observation obs) {
@@ -34,6 +48,7 @@ public class RuleBrain implements Brain {
     private Decision trader(Observation obs) {
         int food = obs.food();
         double price = obs.currentTown().foodPrice();
+        double cheapest = obs.bestBuyPrice(); // the market, or a cheaper offer on the board
         double lastBuyPrice = obs.stat("lastBuyPrice", 100);
 
         // sell for a profit
@@ -41,8 +56,10 @@ public class RuleBrain implements Brain {
             return Decision.sell(food - 1, "price " + (int) price + " beats buying price " + (int) lastBuyPrice);
         }
         // stock up when cheap
-        if (food < 3 && price <= 7 && obs.money() >= 6 * price) {
-            return Decision.buy(6, "low on stock and price " + (int) price + " is cheap");
+        if (food < 3 && cheapest <= 7 && obs.money() >= 6 * cheapest) {
+            return Decision.buy(6, cheapest < price
+                    ? "low on stock and someone here sells at " + Marketplace.fmt(cheapest) + ", under the market"
+                    : "low on stock and price " + (int) price + " is cheap");
         }
         // part-way through a trip -> carry on
         if (obs.travelling()) {

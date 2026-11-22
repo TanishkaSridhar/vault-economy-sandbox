@@ -1,5 +1,6 @@
 package vault;
 
+import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -27,21 +28,32 @@ public final class PromptBuilder {
                 + "last saw there, which may be out of date.\n"
                 + "- Travelling moves you along ONE road per day toward the town you name. Before setting off you pay "
                 + "that road's toll in coins and extra food. Longer trips take several days.\n"
-                + "- Buying needs enough coins and enough food in the local market. You can only sell food you have.\n"
+                + "- SELL puts your food on today's offer board in your town at your asking \"price\" (leave it out "
+                + "to ask the market price). People who act after you today can buy it from you. Whatever is unsold at "
+                + "the end of the day is bought by the market at 1 coin under its price.\n"
+                + "- BUY takes the best offers on the board first (cheap, and from people you trust), then the market. "
+                + "Add \"from\" with a seller's name to buy from them first. You need enough coins.\n"
+                + "- Trust: a fair deal raises trust both ways; charging more than the market lowers it. Buyers prefer "
+                + "sellers they and others trust (reputation), so a trusted seller can ask a little more.\n"
+                + "- Rumours: you may add a \"rumour\" to tell everyone in your town tonight what you think of someone. "
+                + "It moves their trust in that person and is passed on to other towns. If people later find it "
+                + "false, they trust you less.\n"
                 + "\n"
                 + "Your role:\n"
                 + roleGuide(obs.role()) + "\n"
                 + "\n"
                 + "Reply with ONLY a JSON object, no other text:\n"
                 + "{\"reason\": \"<one or two short sentences>\", \"action\": \"<one of your allowed actions>\", "
-                + "\"amount\": <whole number, only for BUY or SELL>, \"target\": \"<town name, only for TRAVEL>\"}";
+                + "\"amount\": <whole number, only for BUY or SELL>, \"target\": \"<town name, only for TRAVEL>\"}\n"
+                + "Optional: \"price\": <asking price, SELL only>, \"from\": \"<seller name, BUY only>\", "
+                + "\"rumour\": {\"about\": \"<name>\", \"says\": \"good\" or \"bad\"}";
     }
 
     private static String roleGuide(String role) {
         switch (role) {
             case "Farmer":
                 return "You are a Farmer. FARM grows food (how much depends on the terrain of your town). "
-                        + "SELL some of your food at the local market for coins. You cannot travel or buy. "
+                        + "SELL some of your food on the offer board for coins. You cannot travel or buy. "
                         + "Food beyond what you need to eat in the coming days only earns you something once you sell it.";
             case "Trader":
                 return "You are a Trader. BUY food where it is cheap, TRAVEL to where it is dear, and SELL it there. "
@@ -66,6 +78,12 @@ public final class PromptBuilder {
         if (!obs.roleStats().isEmpty()) {
             sb.append("Your notes: ").append(notes(obs.roleStats())).append(".\n");
         }
+        sb.append("Your reputation: ").append(SocialGraph.describe(obs.reputation()))
+                .append(String.format(" (%+.2f)", obs.reputation())).append(".\n");
+        if (!obs.news().isEmpty()) {
+            sb.append("\nSince your last turn:\n");
+            for (String n : obs.news()) sb.append("- ").append(n).append('\n');
+        }
 
         sb.append("\nMarkets you know about:\n");
         for (Observation.TownView t : obs.towns()) {
@@ -73,7 +91,9 @@ public final class PromptBuilder {
                     .append(", farming yields ").append(t.terrain().harvest).append("): price ")
                     .append(money(t.foodPrice())).append(", stock ").append(t.foodStock());
             int age = obs.age(t);
-            if (t.name().equals(obs.town())) sb.append("  <- you are here, live");
+            if (t.name().equals(obs.town())) {
+                sb.append(" (the market buys at ").append(money(Town.bid(t.foodPrice()))).append(")  <- you are here, live");
+            }
             else if (t.seenTurn() == 0) sb.append("  (starting price, never visited)");
             else sb.append("  (seen ").append(age).append(age == 1 ? " day" : " days").append(" ago)");
             sb.append(profit(obs, t));
@@ -96,6 +116,18 @@ public final class PromptBuilder {
             }
         }
 
+        if (obs.offers().isEmpty()) {
+            sb.append("\nOffer board here: empty so far today.\n");
+        } else {
+            sb.append("\nOffer board here:\n");
+            for (Observation.OfferView o : obs.offers()) {
+                sb.append("- ").append(o.seller()).append(" (").append(o.role()).append(") sells ")
+                        .append(o.quantity()).append(" food at ").append(money(o.price()))
+                        .append(String.format("; you trust them %+.2f, reputation %s", o.trust(),
+                                SocialGraph.describe(o.reputation()))).append('\n');
+            }
+        }
+
         if (obs.people().isEmpty()) {
             sb.append("\nNobody else is here.\n");
         } else {
@@ -103,9 +135,18 @@ public final class PromptBuilder {
             for (Observation.PersonView p : obs.people()) {
                 sb.append("- ").append(p.name()).append(" (").append(p.role()).append("): ")
                         .append(familiarity(p.familiarity())).append(", trust ")
-                        .append(String.format("%+.2f", p.trust())).append(", met ").append(p.meetings())
-                        .append(p.meetings() == 1 ? " time" : " times").append('\n');
+                        .append(String.format("%+.2f", p.trust())).append(", reputation ")
+                        .append(SocialGraph.describe(p.reputation())).append(", ")
+                        .append(p.actedToday() ? "has already acted today" : "still to act today").append('\n');
             }
+        }
+
+        List<Observation.OpinionView> away = obs.opinions().stream().filter(o -> !o.here()).toList();
+        if (!away.isEmpty()) {
+            sb.append("People elsewhere you have views on: ")
+                    .append(away.stream().map(o -> o.name() + String.format(" %+.2f", o.trust()))
+                            .collect(Collectors.joining(", ")))
+                    .append(".\n");
         }
 
         sb.append("\nAllowed actions: ")

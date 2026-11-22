@@ -58,6 +58,39 @@ class DecisionParserTest {
     }
 
     @Test
+    void readsTheOptionalPriceSellerAndRumour() throws Exception {
+        World w = new World(1, new NoEventLog());
+        Town valley = new Town("Valley", 6, 20);
+        w.addTown(valley);
+        Farmer meena = new Farmer("Meena", valley);
+        Trader arun = new Trader("Arun", valley);
+        w.addAgent(meena);
+        w.addAgent(arun);
+        meena.perform(Decision.sell(2, 5, "test"), w);
+        Observation obs = arun.observe(w, 1);
+
+        Decision buy = DecisionParser.parse("{\"action\":\"BUY\",\"amount\":2,\"from\":\"meena\","
+                + "\"rumour\":{\"about\":\"Meena\",\"says\":\"good\"}}", obs);
+        assertEquals("Meena", buy.from());
+        assertEquals(new Gossip("Meena", true), buy.gossip());
+
+        Decision sell = DecisionParser.parse("{\"action\":\"SELL\",\"amount\":1,\"price\":7.5}", obs);
+        assertEquals(7.5, sell.price(), 1e-9);
+    }
+
+    @Test
+    void unusableExtrasAreDroppedNotRetried() throws Exception {
+        Decision d = DecisionParser.parse("{\"action\":\"BUY\",\"amount\":1,\"from\":\"Nobody\","
+                + "\"rumour\":{\"about\":\"Stranger\",\"says\":\"bad\"}}", trader);
+        assertNull(d.from());
+        assertNull(d.gossip());
+        Decision s = DecisionParser.parse("{\"action\":\"SELL\",\"amount\":1,\"price\":\"lots\"}", farmer);
+        assertEquals(0, s.price(), 1e-9); // 0 = the market price
+        Decision self = DecisionParser.parse("{\"action\":\"FARM\",\"rumour\":{\"about\":\"Meena\",\"says\":\"good\"}}", farmer);
+        assertNull(self.gossip()); // no gossiping about yourself
+    }
+
+    @Test
     void rejectsNonJson() {
         assertTrue(error("I will rest today.", trader).contains("JSON"));
         assertTrue(error("{action: REST", trader).contains("JSON"));

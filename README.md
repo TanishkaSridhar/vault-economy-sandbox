@@ -24,18 +24,57 @@ terrain decides how much it costs to travel. `classic` is the original 3-town, 6
 
 The agents have three roles:
 
-- **Farmers** grow food and sell their spare food at the market.
+- **Farmers** grow food and offer their spare food for sale.
 - **Traders** buy food where it is cheap and sell it where it is expensive.
 - **Diplomats** travel between towns earning a fee, and buy food when they run low.
 
 Each **turn** is one day:
 
-1. Every agent's brain decides what to do, and the agent acts. Travelling moves along **one road per turn** and costs coins (tolls) and food, based on the road's distance and terrain.
-2. Every agent eats 1 food.
-3. Agents in the same town **meet**: they get to know each other better (the relationship graph). Agents apart slowly drift apart.
-4. Every town updates its food price: more selling than buying makes the price fall, more buying than selling makes it rise.
+1. Agents act **one after another, in a new random order every day**. Each one sees the world as it is when its turn comes, including what the agents before it did. Travelling moves along **one road per turn** and costs coins (tolls) and food, based on the road's distance and terrain.
+2. The offer boards close: food nobody bought is sold to the town market.
+3. Every agent eats 1 food.
+4. Agents in the same town **meet**: they get to know each other better (the relationship graph). Agents apart slowly drift apart.
+5. **Rumours** are told and passed on.
+6. Every town updates its food price: more selling than buying at its market makes the price fall, more buying than selling makes it rise.
 
 Agents only see the live price of the town they are in. For other towns they know the last price they saw there, which may be out of date.
+
+### Trading between agents
+
+Every town has an **offer board** for the day.
+
+- **SELL** puts food on the board at an asking price (the market price if none is given). The food
+  leaves the seller's bag at once, so it cannot be sold twice and a buyer always gets it.
+- Agents who act **later that day** in the same town see the offer (who is selling, how much, at
+  what price, how much they trust the seller and the seller's reputation) and who is still to act.
+- **BUY** takes the best offers first, then the town market for the rest. "Best" weighs price
+  against trust, so a trusted seller can ask a little more than a stranger and still be chosen,
+  and a seller the buyer badly distrusts is refused. A buyer can also name a seller (`from`).
+- At the end of the day, anything still on the board is bought by the **town market at 1 coin
+  under its price**. A seller never ends up without a buyer, but selling to a person pays better,
+  and buying from one costs no more than the market.
+- The next day each seller is told what happened ("Meena bought 2 of your food at 6; 1 went to the
+  market at 5"), so it can price and size its next offer with other people in mind.
+
+All matching, payment and checks are plain code: a language model is still asked exactly once
+per agent per turn.
+
+### Trust, reputation and rumours
+
+- **Trust** (what one agent thinks of another, -1..1) changes straight away with every deal: a
+  fair one (at or below the market price) raises it both ways; overcharging lowers the buyer's trust.
+- **Reputation** is what everyone else thinks of an agent: their trust in it, weighted by how well
+  each of them knows it. It is recomputed whenever it is needed, so a deal or a rumour changes it at
+  once, and it changes which offers buyers pick.
+- **Rumours.** An agent can add a rumour to its decision ("Arun is a fair dealer" / "not to be
+  trusted"). It does not have to be true. That night everyone in its town hears it, and their trust in
+  the subject moves (more if they trust the teller). On later nights listeners pass fresh rumours
+  on, so rumours travel to other towns with the people carrying them, getting weaker with each hop
+  (at most 3). Someone who hears a rumour about themselves trusts the teller less (or more, if it
+  was praise). When a listener later deals with the subject, the rumour is checked: if it proves
+  false, the listener trusts whoever told it less.
+- The rule brain gossips honestly about the person it feels most strongly about; a language model
+  may say what it likes, and lives with the consequences.
 
 No one programs the overall economy. Prices, who gets rich and who goes hungry all emerge from individual decisions.
 
@@ -132,10 +171,10 @@ Every run is added to `vault.db` (nothing is overwritten). Open it with any SQLi
 |---|---|---|
 | `runs` | run | seed, number of turns, git commit of the code, start/finish time |
 | `agents`, `towns` | agent / town per run | starting setup (towns include their terrain) |
-| `decisions` | agent per turn | what the agent saw (`observation_json`), what its brain chose and why, the result, before/after money, food and town; for language-model brains also the model that answered, the prompt and answer, time, tokens and failed attempts |
-| `events` | thing that happened | BOUGHT, SOLD, FARMED, TRAVELLED, RESTED, ACTION_FAILED, HUNGRY, with details in `data_json` |
+| `decisions` | agent per turn | what the agent saw (`observation_json`), what its brain chose and why (including an asking `price`, a `buy_from` seller and any rumour), the result, before/after money, food and town; for language-model brains also the model that answered, the prompt and answer, time, tokens and failed attempts |
+| `events` | thing that happened | OFFERED, BOUGHT, TRADE (one agent buying from another), MARKET_SALE (unsold food bought by the market at night), FARMED, TRAVELLED, RESTED, ACTION_FAILED, HUNGRY, RUMOUR, RUMOUR_CHECKED, with details in `data_json` |
 | `roads` | road per run | the map: the two towns, distance, terrain, coin and food cost |
-| `agent_states` | agent per turn | money, food, town and (mid-trip) destination at the end of each turn (turn 0 = start) |
+| `agent_states` | agent per turn | money, food, town, (mid-trip) destination and reputation at the end of each turn (turn 0 = start) |
 | `relationships` | pair of agents per turn | what one agent thinks of another: trust, familiarity, number of meetings |
 | `town_states` | town per turn | price before and after, stock, units sold and bought |
 
@@ -161,6 +200,19 @@ WHERE run_id = (SELECT MAX(id) FROM runs) AND type = 'TRAVELLED' GROUP BY agent;
 SELECT brain_used, COUNT(*), AVG(latency_ms) FROM decisions
 WHERE run_id = (SELECT MAX(id) FROM runs) GROUP BY brain_used;
 
+-- who sold to whom
+SELECT turn, json_extract(data_json, '$.seller') AS seller, agent AS buyer,
+       json_extract(data_json, '$.qty') AS qty, json_extract(data_json, '$.price') AS price
+FROM events WHERE run_id = (SELECT MAX(id) FROM runs) AND type = 'TRADE';
+
+-- every rumour, and who heard it
+SELECT turn, message, json_extract(data_json, '$.listeners') FROM events
+WHERE run_id = (SELECT MAX(id) FROM runs) AND type = 'RUMOUR';
+
+-- reputation over time
+SELECT turn, agent, reputation FROM agent_states
+WHERE run_id = (SELECT MAX(id) FROM runs) ORDER BY agent, turn;
+
 -- how Ravi's familiarity with everyone changed over time
 SELECT turn, to_agent, familiarity FROM relationships
 WHERE run_id = (SELECT MAX(id) FROM runs) AND from_agent = 'Ravi' ORDER BY to_agent, turn;
@@ -170,13 +222,16 @@ WHERE run_id = (SELECT MAX(id) FROM runs) AND from_agent = 'Ravi' ORDER BY to_ag
 
 ```
 World.runTurn()
+  shuffle the agents (seeded, so a run can be repeated)
   for each agent:
-    Observation obs = agent.observe(world, turn)   // what the agent knows
-    Decision d      = agent.decide(obs)            // Brain chooses: action + amount/target + reason
-    Outcome o       = agent.perform(d, world)      // subclass carries it out; money/stock/road rules enforced here
+    Observation obs = agent.observe(world, turn)   // what the agent knows, incl. today's offer board and its news
+    Decision d      = agent.decide(obs)            // Brain chooses: action + amount/target/price/seller + reason (+ rumour)
+    Outcome o       = agent.perform(d, world)      // subclass carries it out; SELL posts an offer, BUY buys via the Marketplace
     log.decision(...)                              // saved to the database
+  market.settle()                                  // unsold offers -> town markets -> MARKET_SALE events
   everyone eats -> HUNGRY events
   social.update()                                  // agents in the same town meet -> relationships
+  rumours.spread()                                 // tonight's gossip + rumours passed on -> RUMOUR events
   towns update prices -> town_states
   log.endTurn()                                    // the whole turn is saved as one transaction
 ```
@@ -186,15 +241,17 @@ A brain only ever sees an `Observation`, never the `World`, and can only return 
 
 The `Observation` holds: the agent's money, food and town; where it is heading if mid-trip;
 what it knows about each market (and how old that information is); the cheapest route and
-its cost to every other town; and the other agents in the same town with its trust in and
-familiarity with each of them.
+its cost to every other town; the other agents in the same town with its trust in and
+familiarity with each of them, their reputation and whether they have acted yet today; the offers
+on this town's board; its own reputation; the people it feels most strongly about; and its news
+since its last turn (who bought its food, what went to the market, rumours it heard).
 
 ## The two graphs
 
 | Graph | Nodes | Edges | Class |
 |---|---|---|---|
 | Map | towns | two-way roads with distance and terrain (`Road`) | `WorldMap`: adjacency list + Dijkstra's shortest path by effort (distance x terrain difficulty) |
-| Relationships | agents | one-way opinions with trust (-1..1) and familiarity (0..1) (`Relationship`) | `SocialGraph`: familiarity grows when agents meet and fades when they are apart; trust will change with deals (step 6) and reputation (step 7) |
+| Relationships | agents | one-way opinions with trust (-1..1) and familiarity (0..1) (`Relationship`) | `SocialGraph`: familiarity grows when agents meet and fades when they are apart; trust changes with deals (`Marketplace`) and rumours (`RumourMill`); `reputation()` is everyone else's trust weighted by familiarity |
 
 Travel costs are settings of the map (`WorldMap(coinsPerEffort, effortPerFood)`), so a policy
 experiment such as "abolish tolls" is just a different map.
@@ -208,9 +265,9 @@ experiment such as "abolish tolls" is just a different map.
 | Abstraction | `Brain` interface (implemented by `RuleBrain` and `LlmBrain`); `EventLog` interface (`SqliteEventLog`, `NoEventLog`); `LlmClient` interface (any language model) |
 | Inheritance | `Farmer`, `Trader`, `Diplomat` extend `Agent`; `OpenAiClient` extends the abstract `HttpLlmClient` |
 | Polymorphism | Each subclass overrides `perform()`; `World.runTurn()` calls it on every agent |
-| Composition | An `Agent` has a `Wallet`, an `Inventory` and a `Brain`; the `World` has towns, agents, a `WorldMap`, a `SocialGraph` and an `EventLog` |
-| Exception handling | `NotEnoughMoneyException` thrown by `Wallet.spend()` and caught in `Agent.buyFood()`; database errors wrapped in `SqliteEventLog`; `LlmException` (network, key, rate limit, bad reply) and `DecisionParser.InvalidAnswer` decide what `LlmBrain` tries next |
-| Records & enums | `Observation`, `Decision`, `Outcome`, `MarketReport`, `Road`, `Route`, `Scenario`; `Action`, `Terrain` |
+| Composition | An `Agent` has a `Wallet`, an `Inventory` and a `Brain`; the `World` has towns, agents, a `WorldMap`, a `SocialGraph`, a `Marketplace`, a `RumourMill` and an `EventLog` |
+| Exception handling | `NotEnoughMoneyException` thrown by `Wallet.spend()` and caught in `Marketplace`; database errors wrapped in `SqliteEventLog`; `LlmException` (network, key, rate limit, bad reply) and `DecisionParser.InvalidAnswer` decide what `LlmBrain` tries next |
+| Records & enums | `Observation`, `Decision`, `Gossip`, `Outcome`, `MarketReport`, `Road`, `Route`, `Scenario`; `Action`, `Terrain` |
 
 ## Roadmap
 
@@ -218,12 +275,13 @@ experiment such as "abolish tolls" is just a different map.
 2. **Done: the two graphs.** Map of towns and roads (distance, terrain, one road per turn, tolls and food by distance); agents only see live prices where they are; relationship graph between agents (trust, familiarity, meetings).
 3. **Done: bigger world.** Scenario files (towns, roads and agents as JSON); 8 towns on 8 terrains, 16 agents; terrain decides harvests and travel costs.
 4. **Done: LLM brain.** Language models chosen by testing (`ModelBench`) from free API tiers, in a fallback chain ending in the rule brain; time limits per answer and per decision; JSON answers checked against the rules; every prompt and response saved.
-5. **Personality.** Numeric traits (risk, honesty, greed, trust) plus a written description for the prompt.
-6. **Memory.** Each agent's own view of past events, with summaries.
-7. **Deals between agents.** Offers, contracts, delivering or breaking them.
-8. **Reputation.** Trust in the relationship graph changes with every interaction (deals kept or broken); each agent's opinion of others spreads by word of mouth.
-9. **Rumours.** Information spreading along the relationship graph and roads, getting distorted, fading, or made up.
-10. **Validation.** Many seeds, baseline comparisons, checks against known real-world economic patterns, so policy tests can be trusted.
+5. **Done: trading between agents.** Daily offer boards per town, shuffled turn order, buyers choosing by price and trust, unsold food bought by the market at night, sellers told what happened.
+6. **Done: reputation.** Trust changes with every deal; reputation (everyone else's familiarity-weighted trust) steers who buyers pick.
+7. **Done: rumours.** Made-up or true claims about other agents, told at night, passed on between towns, weakening per hop, checked against later experience.
+8. **Personality.** Numeric traits (risk, honesty, greed, trust) plus a written description for the prompt.
+9. **Memory.** Each agent's own view of past events, with summaries (today it only gets yesterday's news).
+10. **Longer deals.** Promises to deliver later or pay later, which can be kept or broken (a stronger signal for reputation than spot trades).
+11. **Validation.** Many seeds, baseline comparisons, checks against known real-world economic patterns, so policy tests can be trusted.
 
 Later, if there is time:
 

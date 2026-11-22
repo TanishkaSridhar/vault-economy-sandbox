@@ -9,10 +9,10 @@ import java.util.Map;
  * The relationship graph. Agents are nodes; every ordered pair of agents
  * has a directed edge (a Relationship) holding trust and familiarity.
  *
- * For now relationships change only by meeting: agents in the same town
- * at the end of a turn get to know each other, and drift apart otherwise.
- * Trust is stored here but only changes once agents can make deals
- * (step 6) and judge each other's reputation (step 7).
+ * Familiarity changes by meeting: agents in the same town at the end of a turn
+ * get to know each other, and drift apart otherwise.
+ * Trust changes through deals (Marketplace) and word of mouth (RumourMill).
+ * An agent's reputation is what everyone else's trust in it adds up to.
  */
 public class SocialGraph {
 
@@ -63,6 +63,34 @@ public class SocialGraph {
 
     public void adjustTrust(String from, String to, double delta) {
         get(from, to).adjustTrust(delta);
+    }
+
+    /**
+     * An agent's reputation: the average trust everyone else has in it, weighted by how well
+     * each of them knows it (a stranger's opinion counts for little). -1 .. +1, 0 if hardly
+     * anyone knows the agent. It is recomputed from the edges every time, so it reacts at once
+     * to deals and rumours.
+     */
+    public double reputation(String name) {
+        double weighted = 0;
+        double weights = 0;
+        for (Map.Entry<String, Map<String, Relationship>> e : edges.entrySet()) {
+            if (e.getKey().equals(name)) continue;
+            Relationship r = e.getValue().get(name);
+            if (r == null) continue;
+            weighted += r.getTrust() * r.getFamiliarity();
+            weights += r.getFamiliarity();
+        }
+        return weights < 0.05 ? 0 : weighted / weights;
+    }
+
+    /** A word for a reputation or trust value, used in prompts and the console. */
+    public static String describe(double value) {
+        if (value >= 0.4) return "excellent";
+        if (value >= 0.15) return "good";
+        if (value > -0.15) return "neutral";
+        if (value > -0.4) return "poor";
+        return "bad";
     }
 
     /**
