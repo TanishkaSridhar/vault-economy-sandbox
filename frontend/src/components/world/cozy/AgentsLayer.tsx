@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef } from 'react'
 import * as THREE from 'three'
 import type { AgentMeta, AgentState, Decision } from '../../../hooks/useSimData'
 import { assignLooks } from './looks'
-import { PLAZA_H, route, roadPoints, townSlots, type RoadPath, type XZ } from './layout'
+import { PLAZA_TOP, route, roadPoints, townSlots, type RoadPath, type XZ } from './layout'
 import { Villager, type Motion, type Mood } from './Villager'
 
 interface Props {
@@ -62,7 +62,7 @@ export function AgentsLayer(p: Props) {
           for (let i = 0; i < hops.length - 1; i++) {
             const pts = roadPoints(roads, hops[i], hops[i + 1])
             if (pts) path.push(...pts.map(v => v.clone().setY(0.06)))
-            if (i < hops.length - 2) { const c = layout[hops[i + 1]]; path.push(new THREE.Vector3(c[0], PLAZA_H, c[1])) }
+            if (i < hops.length - 2) { const c = layout[hops[i + 1]]; path.push(new THREE.Vector3(c[0], PLAZA_TOP, c[1])) }
           }
         }
         out.set(s.agent, { id, home, path, duration: walkMs })

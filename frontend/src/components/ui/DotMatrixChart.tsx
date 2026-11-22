@@ -11,7 +11,7 @@ export function DotMatrixChart({
   data,
   width = 320,
   height = 200,
-  color = '#FF6B2C',
+  color = '#5b7a34',
   cols = 10,
   rows = 6,
 }: DotMatrixChartProps) {

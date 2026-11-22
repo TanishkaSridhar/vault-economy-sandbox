@@ -6,7 +6,7 @@ interface TickBarProps {
   color?: string
 }
 
-export function TickBar({ value, max, label, valueLabel, color = '#FF6B2C' }: TickBarProps) {
+export function TickBar({ value, max, label, valueLabel, color = '#5b7a34' }: TickBarProps) {
   const pct = Math.min(100, Math.max(0, (value / max) * 100))
   const tickCount = 20
 

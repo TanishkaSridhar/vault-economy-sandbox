@@ -45,10 +45,10 @@ export function Timeline() {
       right: 0,
       height: 72,
       zIndex: 100,
-      background: 'rgba(255,255,255,0.8)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderTop: '1px solid rgba(255,255,255,0.9)',
+      background: 'var(--surface)',
+
+
+      borderTop: '1px solid var(--line)',
       boxShadow: '0 -4px 24px rgba(0,0,0,0.06)',
       display: 'flex',
       alignItems: 'center',
@@ -61,7 +61,7 @@ export function Timeline() {
         style={btnStyle}
         title="Go to start"
       >
-        <SkipBack size={16} color="#6B7280" />
+        <SkipBack size={16} color="#6f5d48" />
       </button>
 
       {/* Play/Pause */}
@@ -69,9 +69,9 @@ export function Timeline() {
         onClick={() => playing ? pause() : play()}
         style={{
           ...btnStyle,
-          background: '#FF6B2C',
-          borderColor: 'rgba(255,107,44,0.3)',
-          boxShadow: '0 2px 10px rgba(255,107,44,0.3)',
+          background: '#5b7a34',
+          borderColor: 'rgba(91,122,52,0.3)',
+          boxShadow: 'var(--shadow-press)',
         }}
         title={playing ? 'Pause' : 'Play'}
       >
@@ -87,7 +87,7 @@ export function Timeline() {
         style={btnStyle}
         title="Go to end"
       >
-        <SkipForward size={16} color="#6B7280" />
+        <SkipForward size={16} color="#6f5d48" />
       </button>
 
       {/* Speed selector */}
@@ -97,12 +97,12 @@ export function Timeline() {
           onChange={e => setSpeed(Number(e.target.value))}
           style={{
             background: 'rgba(0,0,0,0.05)',
-            border: '1px solid rgba(255,255,255,0.8)',
+            border: '1px solid var(--line)',
             borderRadius: 8,
             padding: '4px 24px 4px 10px',
             fontSize: 12,
             fontWeight: 600,
-            color: '#1A1A2E',
+            color: '#33281d',
             fontFamily: 'inherit',
             outline: 'none',
             cursor: 'pointer',
@@ -119,7 +119,7 @@ export function Timeline() {
           transform: 'translateY(-50%)',
           pointerEvents: 'none',
           fontSize: 10,
-          color: '#6B7280',
+          color: '#6f5d48',
         }}>▼</div>
       </div>
 
@@ -131,7 +131,7 @@ export function Timeline() {
           max={maxTurn}
           value={turn}
           onChange={e => setTurn(Number(e.target.value))}
-          style={{ flex: 1, accentColor: '#FF6B2C' }}
+          style={{ flex: 1, accentColor: '#5b7a34' }}
         />
       </div>
 
@@ -139,11 +139,11 @@ export function Timeline() {
       <div style={{
         fontSize: 13,
         fontWeight: 700,
-        color: '#1A1A2E',
+        color: '#33281d',
         whiteSpace: 'nowrap',
         minWidth: 80,
       }}>
-        Turn <span style={{ color: '#FF6B2C' }}>{turn}</span> / {maxTurn}
+        Turn <span style={{ color: '#5b7a34' }}>{turn}</span> / {maxTurn}
       </div>
 
       {/* Run selector */}
@@ -154,12 +154,12 @@ export function Timeline() {
             onChange={e => setRun(Number(e.target.value))}
             style={{
               background: 'rgba(0,0,0,0.05)',
-              border: '1px solid rgba(255,255,255,0.8)',
+              border: '1px solid var(--line)',
               borderRadius: 8,
               padding: '4px 24px 4px 10px',
               fontSize: 12,
               fontWeight: 600,
-              color: '#1A1A2E',
+              color: '#33281d',
               fontFamily: 'inherit',
               outline: 'none',
               cursor: 'pointer',
@@ -179,7 +179,7 @@ export function Timeline() {
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
             fontSize: 10,
-            color: '#6B7280',
+            color: '#6f5d48',
           }}>▼</div>
         </div>
       )}
@@ -191,7 +191,7 @@ const btnStyle: React.CSSProperties = {
   width: 36,
   height: 36,
   borderRadius: 10,
-  border: '1px solid rgba(255,255,255,0.8)',
+  border: '1px solid var(--line)',
   background: 'rgba(0,0,0,0.05)',
   cursor: 'pointer',
   display: 'flex',

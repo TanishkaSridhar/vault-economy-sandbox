@@ -30,14 +30,15 @@ function getDemo() {
   return demoData
 }
 
-// better-sqlite3 is a native module; if it fails to load we stay in demo mode for good
+// Node's built-in SQLite (Node 22.13+), so nothing native has to be compiled on install.
+// If it is missing (older Node) we stay in demo mode for good.
 let Database = null
 let driverError = null
 try {
-  Database = require('better-sqlite3')
+  Database = require('node:sqlite').DatabaseSync
 } catch (e) {
   driverError = e.message
-  console.log(`[VAULT bridge] better-sqlite3 failed to load (${e.message}) — demo mode only`)
+  console.log(`[VAULT bridge] node:sqlite unavailable (${e.message}); needs Node 22.13+, demo mode only`)
 }
 
 // ---- Live/demo source, re-checked per request (cached for SOURCE_CHECK_MS) ----
@@ -79,7 +80,7 @@ function refreshSource(force = false) {
   if (!force && now - source.checkedAt < SOURCE_CHECK_MS) return
   source.checkedAt = now
 
-  if (!Database) return setSource(true, `better-sqlite3 unavailable: ${driverError}`)
+  if (!Database) return setSource(true, `node:sqlite unavailable: ${driverError}`)
 
   const st = statDb()
   if (!st) {
@@ -107,7 +108,8 @@ function refreshSource(force = false) {
 }
 
 function openDb() {
-  db = new Database(DB_PATH, { readonly: true, fileMustExist: true })
+  // readOnly never creates the file, so a missing vault.db throws (like fileMustExist did)
+  db = new Database(DB_PATH, { readOnly: true })
 }
 
 // Windows locks an open SQLite file, which would stop the simulation from deleting or

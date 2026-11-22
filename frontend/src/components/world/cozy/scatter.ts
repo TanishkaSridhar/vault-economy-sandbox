@@ -1,15 +1,15 @@
 import type * as THREE from 'three'
 import { C } from './palette'
-import { PLAZA, type XZ, type Spot } from './layout'
+import { TOWN_SIZE, TOWN_SCALE, type XZ, type Spot } from './layout'
 import type { TreeSpec } from './props'
 import { distToPolyline } from './shapes'
 import { hashString, rng } from './toon'
 
 const TREE_RULES: Record<string, { n: number; kinds: TreeSpec['kind'][]; colors: string[] }> = {
-  FOREST: { n: 30, kinds: ['pine', 'pine', 'round'], colors: [C.pine, C.treeDeep, C.treeGreen] },
-  RIVER: { n: 14, kinds: ['round', 'round', 'bush'], colors: [C.treeOrange, C.treeYellow, C.treeGreen] },
+  FOREST: { n: 40, kinds: ['pine', 'pine', 'round'], colors: [C.pine, C.treeDeep, C.treeGreen] },
+  RIVER: { n: 18, kinds: ['round', 'round', 'bush'], colors: [C.treeOrange, C.treeYellow, C.treeGreen] },
   HILLS: { n: 10, kinds: ['round', 'bush'], colors: [C.treeGreen, C.treeYellow, C.bush] },
-  MOUNTAINS: { n: 16, kinds: ['pine'], colors: [C.pine, C.treeDeep] },
+  MOUNTAINS: { n: 22, kinds: ['pine'], colors: [C.pine, C.treeDeep] },
   PLAINS: { n: 7, kinds: ['round', 'bush'], colors: [C.treeOrange, C.treeYellow] },
   COAST: { n: 6, kinds: ['round', 'bush'], colors: [C.treeGreen, C.bush] },
   MARSH: { n: 10, kinds: ['bush', 'round'], colors: [C.treeDeep, C.bush, C.treeGreen] },
@@ -30,17 +30,17 @@ export function scatterTrees(
   density = 1,
 ): TreeSpec[] {
   const trees: TreeSpec[] = []
-  const plazaBlocks: [number, number, number][] = towns.map(t => [t.at[0], t.at[1], PLAZA * 0.72])
+  const plazaBlocks: [number, number, number][] = towns.map(t => [t.at[0], t.at[1], TOWN_SIZE * 0.85])
   for (const t of towns) {
     const rule = TREE_RULES[t.terrain] ?? TREE_RULES.PLAINS
-    const zones = t.spots.map(sp => [t.at[0] + sp.x, t.at[1] + sp.z, sp.r + 0.6] as [number, number, number])
+    const zones = t.spots.map(sp => [t.at[0] + sp.x * TOWN_SCALE, t.at[1] + sp.z * TOWN_SCALE, (sp.r + 0.6) * TOWN_SCALE] as [number, number, number])
     const r = rng(hashString(t.name))
     let placed = 0, tries = 0
     const want = Math.round(rule.n * density)
     while (placed < want && tries < want * 30) {
       tries++
       const a = r() * Math.PI * 2
-      const d = PLAZA * 0.62 + r() * 3.4
+      const d = TOWN_SIZE * 0.72 + r() * 4.2
       const x = t.at[0] + Math.cos(a) * d, z = t.at[1] + Math.sin(a) * d
       if (!free(x, z, roads, [...plazaBlocks, ...zones])) continue
       // keep the camera-facing side (+x/+z) a bit clearer so the plaza stays visible
@@ -52,7 +52,7 @@ export function scatterTrees(
   }
   // open-ground sprinkle away from towns
   const r = rng(12345)
-  const townBlocks: [number, number, number][] = towns.map(t => [t.at[0], t.at[1], PLAZA * 1.25])
+  const townBlocks: [number, number, number][] = towns.map(t => [t.at[0], t.at[1], TOWN_SIZE * 1.25])
   const [minX, minZ, maxX, maxZ] = bounds
   const want = Math.round(((maxX - minX) * (maxZ - minZ) / 55) * density)
   for (let i = 0, tries = 0; i < want && tries < want * 20; tries++) {

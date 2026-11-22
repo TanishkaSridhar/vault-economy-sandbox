@@ -1,19 +1,52 @@
 @import "tailwindcss";
 
+/*
+ * Earthy theme taken from the map: parchment and soil, moss green as the main accent,
+ * terracotta only for bad news. Solid surfaces with soft, low shadows (no glow, no glass).
+ */
 :root {
-  --color-orange: #FF6B2C;
-  --color-orange-light: #FFE4D6;
-  --color-orange-dark: #D94F10;
-  --color-text: #1A1A2E;
-  --color-text-sub: #6B7280;
-  --color-glass: rgba(255, 255, 255, 0.65);
-  --color-glass-border: rgba(255, 255, 255, 0.9);
-  --shadow-card: 0 8px 32px rgba(0,0,0,0.08), 0 1.5px 4px rgba(0,0,0,0.04);
-  --shadow-hover: 0 16px 48px rgba(0,0,0,0.12);
-  --radius-card: 20px;
+  --bg: #ece3cf;
+  --bg-deep: #e2d6bb;
+  --surface: #faf6ec;
+  --surface-2: #f3ecdb;
+  --line: #ddcfb1;
+  --line-strong: #cbb993;
+  --ink: #33281d;
+  --ink-sub: #6f5d48;
+  --ink-faint: #9c8a72;
+
+  --accent: #5b7a34;          /* moss */
+  --accent-strong: #44602a;
+  --accent-soft: #e2e9cf;
+  --accent-ink: #f8f5ea;
+  --soil: #8a5f3c;
+  --soil-soft: #efe0cc;
+  --water: #4f8a9a;
+  --water-soft: #d8e8ea;
+  --good: #5b7a34;
+  --bad: #a8492c;             /* terracotta */
+  --bad-soft: #f2dccf;
+  --warn: #b98a2e;
+
+  --shadow-card: 0 1px 0 rgba(51, 40, 29, 0.05), 0 2px 8px rgba(51, 40, 29, 0.07);
+  --shadow-hover: 0 2px 0 rgba(51, 40, 29, 0.06), 0 8px 20px rgba(51, 40, 29, 0.10);
+  --shadow-press: 0 1px 0 rgba(51, 40, 29, 0.18);
+  --radius-card: 14px;
   --radius-pill: 999px;
-  --blur-glass: blur(16px);
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  --ease: cubic-bezier(0.22, 0.8, 0.26, 1);
+  --display: 'Itim', 'Plus Jakarta Sans', system-ui, sans-serif; /* the map's hand-lettered font, for headings */
+
+  /* old names, kept so nothing breaks */
+  --color-orange: var(--accent);
+  --color-orange-light: var(--accent-soft);
+  --color-orange-dark: var(--accent-strong);
+  --color-text: var(--ink);
+  --color-text-sub: var(--ink-sub);
+  --color-glass: var(--surface);
+  --color-glass-border: var(--line);
+  --blur-glass: none;
+
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
 }
 
 *, *::before, *::after {
@@ -23,54 +56,65 @@
 }
 
 body {
-  background: linear-gradient(135deg, #f0f4ff 0%, #faf5ff 50%, #fff8f0 100%);
+  background: var(--bg);
   min-height: 100vh;
-  color: #1A1A2E;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  color: var(--ink);
+  font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 #root {
   min-height: 100vh;
 }
 
-/* Custom range input styling */
+button, input, select { font-family: inherit; }
+button { transition: background-color 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease), transform 0.15s var(--ease); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Page transitions: a short, plain cross-fade. Nothing slides or bounces. */
+@keyframes page-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.page-enter { animation: page-in 0.22s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .page-enter { animation: none; }
+}
+
+/* Range input */
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   background: transparent;
   cursor: pointer;
 }
-
-input[type="range"]::-webkit-slider-track {
-  background: rgba(255,255,255,0.4);
+input[type="range"]::-webkit-slider-runnable-track {
+  background: var(--line);
   height: 4px;
   border-radius: 2px;
 }
-
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  background: #FF6B2C;
+  background: var(--accent);
   width: 14px;
   height: 14px;
   border-radius: 50%;
   margin-top: -5px;
-  box-shadow: 0 1px 4px rgba(255,107,44,0.4);
+  border: 2px solid var(--surface);
+  box-shadow: var(--shadow-press);
 }
-
 input[type="range"]::-moz-range-track {
-  background: rgba(255,255,255,0.4);
+  background: var(--line);
   height: 4px;
   border-radius: 2px;
 }
-
 input[type="range"]::-moz-range-thumb {
-  background: #FF6B2C;
-  width: 14px;
-  height: 14px;
+  background: var(--accent);
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  border: none;
-  box-shadow: 0 1px 4px rgba(255,107,44,0.4);
+  border: 2px solid var(--surface);
 }
 
 select {
@@ -79,21 +123,138 @@ select {
   cursor: pointer;
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
+/* Scrollbars */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--ink-faint); }
 
-::-webkit-scrollbar-track {
+/* ---- World page overlays ---- */
+.wp-panel {
+  position: absolute;
+  z-index: 200000; /* above the map's floating labels */
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow-hover);
+  color: var(--ink);
+}
+.wp-feed {
+  width: 300px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: transform 0.35s var(--ease), opacity 0.25s var(--ease);
+}
+.wp-feed.is-closed { transform: translateX(calc(100% + 24px)); opacity: 0; pointer-events: none; }
+.wp-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  width: 100%;
+  text-align: left;
+  border: none;
   background: transparent;
+  border-radius: 9px;
+  padding: 6px 8px;
+  font-size: 12.5px;
+  line-height: 1.35;
+  color: var(--ink);
+  cursor: pointer;
+}
+.wp-row:hover { background: var(--surface-2); }
+.wp-row.is-on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.wp-row.is-later { opacity: 0.55; }
+.wp-num {
+  flex: none;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  font-size: 10.5px;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--ink-sub);
+}
+.wp-row.is-on .wp-num { background: var(--accent); color: var(--accent-ink); }
+.wp-player {
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  white-space: nowrap;
+  max-width: calc(100% - 32px);
+}
+.wp-sep { width: 1px; align-self: stretch; background: var(--line); margin: 2px 2px; }
+.wp-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--ink-sub);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.wp-icon:hover { color: var(--ink); border-color: var(--line-strong); }
+.wp-icon.is-on { background: var(--accent-soft); color: var(--accent-strong); border-color: var(--accent); }
+.wp-play {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  border: none;
+  background: var(--accent);
+  color: var(--accent-ink);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 0 var(--accent-strong);
+}
+.wp-play:hover { background: var(--accent-strong); }
+.wp-play:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--accent-strong); }
+.wp-select {
+  width: 100%;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 5px 8px;
+}
+@media (max-width: 1100px) {
+  .wp-feed { width: 250px; }
 }
 
-::-webkit-scrollbar-thumb {
-  background: rgba(0,0,0,0.12);
-  border-radius: 3px;
+/* Tailwind's reset makes every svg a block; icons should sit inline with their text */
+svg.lucide { display: inline-block; vertical-align: -2px; flex: none; }
+.wp-camera {
+  left: 50%;
+  bottom: 84px;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  white-space: nowrap;
 }
+.wp-camera-help { font-size: 11.5px; color: var(--ink-sub); max-width: 330px; overflow: hidden; text-overflow: ellipsis; }
 
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0,0,0,0.2);
+/* ledger tables: ruled rows, numbers right-aligned, easy to scan */
+.ledger { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ledger th {
+  text-align: left; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+  color: var(--ink-faint); padding: 0 8px 8px; border-bottom: 1.5px solid var(--line-strong);
 }
+.ledger td { padding: 8px; border-bottom: 1px solid var(--line); color: var(--ink); vertical-align: middle; }
+.ledger tr:last-child td { border-bottom: none; }
+.ledger tbody tr { transition: background-color 0.15s; }
+.bar-row { transition: background-color 0.15s; }
+.bar-row:hover { background: var(--surface-2); }
+.ledger tbody tr:hover { background: var(--surface-2); }
+.ledger .r { text-align: right; white-space: nowrap; }

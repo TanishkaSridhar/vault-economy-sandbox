@@ -12,7 +12,7 @@ export function RingGauge({
   label,
   sublabel,
   size = 140,
-  color = '#FF6B2C',
+  color = '#5b7a34',
   tickCount = 24,
 }: RingGaugeProps) {
   const cx = size / 2
@@ -89,7 +89,7 @@ export function RingGauge({
         style={{
           fontSize: size * 0.18,
           fontWeight: 800,
-          fill: '#1A1A2E',
+          fill: '#33281d',
           fontFamily: "'Plus Jakarta Sans', sans-serif",
         }}
       >
@@ -104,7 +104,7 @@ export function RingGauge({
           style={{
             fontSize: size * 0.09,
             fontWeight: 500,
-            fill: '#6B7280',
+            fill: '#6f5d48',
             fontFamily: "'Plus Jakarta Sans', sans-serif",
           }}
         >

@@ -8,6 +8,7 @@ interface GlassCardProps {
   style?: React.CSSProperties
 }
 
+/** A solid card (the name is historical: it used to be frosted glass). */
 export function GlassCard({ children, className = '', onClick, hoverable = false, style }: GlassCardProps) {
   const [hovered, setHovered] = React.useState(false)
 
@@ -18,14 +19,13 @@ export function GlassCard({ children, className = '', onClick, hoverable = false
       onMouseLeave={() => hoverable && setHovered(false)}
       className={className}
       style={{
-        background: 'var(--color-glass)',
-        backdropFilter: 'var(--blur-glass)',
-        WebkitBackdropFilter: 'var(--blur-glass)',
-        border: '1px solid var(--color-glass-border)',
-        borderRadius: 'var(--radius-card)',
-        boxShadow: hovered ? 'var(--shadow-hover)' : 'var(--shadow-card)',
-        transform: hovered ? 'translateY(-2px)' : 'translateY(0)',
-        transition: 'all 0.2s ease',
+        borderWidth: 1, borderStyle: 'solid',
+        borderRadius: 12,
+        boxShadow: '0 1px 0 rgba(51,40,29,0.06), 0 3px 0 -1px var(--line)',
+        // hover is a quiet tint, never movement: the layout should feel planted
+        backgroundColor: hovered ? '#fdfaf2' : 'var(--surface)',
+        borderColor: hovered ? 'var(--ink-faint)' : 'var(--line-strong)',
+        transition: 'border-color 0.2s ease, background-color 0.2s ease',
         cursor: onClick ? 'pointer' : undefined,
         ...style,
       }}

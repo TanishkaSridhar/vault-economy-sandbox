@@ -17,8 +17,8 @@ export function KPITile({ label, value, unit, progress, icon, change }: KPITileP
     <div
       style={{
         background: 'var(--color-glass)',
-        backdropFilter: 'var(--blur-glass)',
-        WebkitBackdropFilter: 'var(--blur-glass)',
+
+
         border: '1px solid var(--color-glass-border)',
         borderRadius: 'var(--radius-card)',
         boxShadow: 'var(--shadow-card)',

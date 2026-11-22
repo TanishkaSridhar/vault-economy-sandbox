@@ -34,7 +34,7 @@ export interface Motion {
 export interface Mood { hungry: boolean; traded: boolean; profit: boolean; key: string }
 
 /** Villagers are drawn at this scale relative to their modelled size (~1.1 units tall). */
-export const VILLAGER_SCALE = 1.9
+export const VILLAGER_SCALE = 1.55
 
 interface VillagerProps {
   name: string

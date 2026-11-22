@@ -50,6 +50,7 @@ export interface AgentState {
   money: number
   food: number
   destination?: string
+  reputation?: number | null   // what everyone else thinks of this agent (newer runs only)
 }
 
 export interface TownState {

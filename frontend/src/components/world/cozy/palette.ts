@@ -91,14 +91,9 @@ export const TERRAIN_ACCENT: Record<string, string> = {
   MARSH: '#6d9c7a',
 }
 
-export const TERRAIN_ICON: Record<string, string> = {
-  PLAINS: '🌾', RIVER: '🌊', FOREST: '🌲', HILLS: '⛰️',
-  MOUNTAINS: '🏔️', DESERT: '🌵', COAST: '⚓', MARSH: '🪷',
+export const ROLE_STYLE: Record<string, { color: string; ink: string }> = {
+  Farmer: { color: '#dfe6c4', ink: '#44602a' },
+  Trader: { color: '#f1dfbd', ink: '#7a4f24' },
+  Diplomat: { color: '#d6e5e6', ink: '#33606b' },
 }
-
-export const ROLE_STYLE: Record<string, { color: string; ink: string; icon: string }> = {
-  Farmer: { color: '#d9ecb4', ink: '#4f6b25', icon: '🌾' },
-  Trader: { color: '#fbd99a', ink: '#8a4f12', icon: '🪙' },
-  Diplomat: { color: '#c7e5ec', ink: '#2f6475', icon: '🕊️' },
-}
-export const roleStyle = (role: string) => ROLE_STYLE[role] ?? { color: '#efe2c8', ink: '#6b4a32', icon: '⭐' }
+export const roleStyle = (role: string) => ROLE_STYLE[role] ?? { color: '#ece0c6', ink: '#5c4630' }

@@ -1,272 +1,120 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { GlassCard } from '../ui/GlassCard'
-import { KPITile } from '../ui/KPITile'
-import { RingGauge } from '../ui/RingGauge'
-import { DotMatrixChart } from '../ui/DotMatrixChart'
-import { TickBar } from '../ui/TickBar'
-import { TabSwitch } from '../ui/TabSwitch'
+import { Maximize2, ArrowUpRight, ArrowDownRight, Minus, Handshake, MessageCircle, UtensilsCrossed, Store, Footprints } from 'lucide-react'
 import { CozyWorld } from '../world/cozy/CozyWorld'
+import { Panel, Figure } from '../ui/Panel'
+import { TerrainGlyph } from '../ui/TerrainGlyph'
 import { useTurn } from '../../hooks/useTurn'
-import { useRunData, useTurnDecisions, getTownStatesAtTurn, getAgentStatesAtTurn, getEventsUpToTurn } from '../../hooks/useSimData'
-import { useState, useMemo } from 'react'
+import { useRunData, useTurnDecisions, type GameEvent } from '../../hooks/useSimData'
 
-const TOWN_NAMES = ['Riverton', 'Valley', 'Port', 'Woodhaven', 'Saltmarsh', 'Hill', 'Sandreach', 'Highpeak']
-const PRICE_MIN = 4
-const PRICE_MAX = 17
+const num = (x: number, d = 0) => (Number.isInteger(x) && d === 0 ? String(x) : x.toFixed(d))
+const signed = (x: number, d = 0) => (x > 0 ? '+' : x < 0 ? '−' : '±') + num(Math.abs(x), d)
+const data = (e: GameEvent): Record<string, unknown> => { try { return e.data_json ? JSON.parse(e.data_json) : {} } catch { return {} } }
+
+/** What the day's events say, in plain sentences, most interesting first. */
+function storyOf(events: GameEvent[]) {
+  const out: { icon: typeof Handshake; tone: string; text: string }[] = []
+  for (const e of events) {
+    const x = data(e)
+    if (e.type === 'TRADE') out.push({ icon: Handshake, tone: 'var(--warn)', text: `${x.seller} sold ${x.qty} food to ${x.buyer} at ${x.price} in ${e.town}` })
+    else if (e.type === 'RUMOUR') out.push({ icon: MessageCircle, tone: x.good ? 'var(--good)' : 'var(--bad)', text: `${e.agent} told ${(x.listeners as string[] | undefined)?.join(', ')} that ${x.about} ${x.good ? 'is a fair dealer' : 'is not to be trusted'}` })
+  }
+  const hungry = events.filter(e => e.type === 'HUNGRY').map(e => e.agent)
+  if (hungry.length) out.push({ icon: UtensilsCrossed, tone: 'var(--bad)', text: `${hungry.join(', ')} went to bed hungry` })
+  const toMarket = events.filter(e => e.type === 'MARKET_SALE')
+  if (toMarket.length) out.push({ icon: Store, tone: 'var(--water)', text: `${toMarket.length} seller${toMarket.length > 1 ? 's' : ''} sent unsold food to the market (${toMarket.map(e => e.agent).join(', ')})` })
+  const trips = events.filter(e => e.type === 'TRAVELLED')
+  if (trips.length) out.push({ icon: Footprints, tone: 'var(--soil)', text: `${trips.length} on the road: ${trips.map(e => `${e.agent} to ${data(e).to}`).join(', ')}` })
+  return out
+}
 
 export function Overview() {
   const navigate = useNavigate()
   const { turn, runId, maxTurn } = useTurn()
   const { agents, towns, roads, agentStates, townStates, events, isLoading } = useRunData(runId)
-  const currentTurnDecisions = useTurnDecisions(runId, turn)
-  const [activeTab, setActiveTab] = useState('Live')
-  const [selectedTown, setSelectedTown] = useState<string | null>(null)
+  const decisions = useTurnDecisions(runId, turn)
 
-  // Current-turn derived data
-  const currentAgentStates = useMemo(() => getAgentStatesAtTurn(agentStates, turn), [agentStates, turn])
-  const currentTownStates = useMemo(() => getTownStatesAtTurn(townStates, turn), [townStates, turn])
-  const eventsUpToNow = useMemo(() => getEventsUpToTurn(events, turn), [events, turn])
+  const now = useMemo(() => agentStates.filter(s => s.turn === turn), [agentStates, turn])
+  const before = useMemo(() => agentStates.filter(s => s.turn === turn - 1), [agentStates, turn])
+  const today = useMemo(() => events.filter(e => e.turn === turn), [events, turn])
+  const yesterday = useMemo(() => events.filter(e => e.turn === turn - 1), [events, turn])
 
-  // KPIs
-  const totalWealth = useMemo(() =>
-    currentAgentStates.reduce((s, a) => s + a.money, 0), [currentAgentStates])
+  const wealth = now.reduce((s, a) => s + a.money, 0)
+  const wealthBefore = before.reduce((s, a) => s + a.money, 0)
+  const food = now.reduce((s, a) => s + a.food, 0)
+  const foodBefore = before.reduce((s, a) => s + a.food, 0)
+  const trades = today.filter(e => e.type === 'TRADE').length
+  const tradesBefore = yesterday.filter(e => e.type === 'TRADE').length
+  const hungry = today.filter(e => e.type === 'HUNGRY').length
+  const hungryBefore = yesterday.filter(e => e.type === 'HUNGRY').length
 
-  const tradesThisTurn = useMemo(() =>
-    events.filter(e => e.turn === turn && (e.type === 'BOUGHT' || e.type === 'SOLD')).length,
-    [events, turn])
+  const board = useMemo(() => towns.map(t => {
+    const s = townStates.find(x => x.town === t.name && x.turn === turn)
+    const p = townStates.find(x => x.town === t.name && x.turn === turn - 1)
+    return { name: t.name, terrain: t.terrain, price: s?.price ?? t.start_price, change: s && p ? s.price - p.price : 0, stock: s?.stock ?? t.start_stock, sold: s?.sold ?? 0, bought: s?.bought ?? 0, people: now.filter(a => a.town === t.name).length }
+  }).sort((a, b) => a.price - b.price), [towns, townStates, turn, now])
 
-  const hungryCount = useMemo(() =>
-    eventsUpToNow.filter(e => e.type === 'HUNGRY').length,
-    [eventsUpToNow])
-
-  const tollsPaid = useMemo(() => {
-    const travelled = eventsUpToNow.filter(e => e.type === 'TRAVELLED' && e.data_json)
-    return travelled.reduce((sum, e) => {
-      try { const d = JSON.parse(e.data_json!); return sum + (d.coins ?? 0) } catch { return sum }
-    }, 0)
-  }, [eventsUpToNow])
-
-  // Avg price for ring gauge (0-100%)
-  const avgPrice = currentTownStates.length > 0
-    ? currentTownStates.reduce((s, t) => s + t.price, 0) / currentTownStates.length
-    : 9
-  const priceRingPct = Math.round(((avgPrice - PRICE_MIN) / (PRICE_MAX - PRICE_MIN)) * 100)
-
-  // Dot matrix: price history all towns
-  const dotData = useMemo(() => {
-    const pts: Array<{ x: number; y: number; value: number; label?: string }> = []
-    townStates.forEach(ts => {
-      const yi = TOWN_NAMES.indexOf(ts.town)
-      if (yi === -1) return
-      pts.push({ x: ts.turn, y: yi, value: ts.price, label: ts.town })
-    })
-    return pts
-  }, [townStates])
-
-  // Supply vs demand
-  const totalSold = currentTownStates.reduce((s, t) => s + t.sold, 0)
-  const totalBought = currentTownStates.reduce((s, t) => s + t.bought, 0)
-  const maxFlow = Math.max(totalSold, totalBought, 1)
-
-  // Town for the conditions card
-  const condTownName = selectedTown ?? currentTownStates[0]?.town ?? TOWN_NAMES[0]
-  const condTown = currentTownStates.find(t => t.town === condTownName)
-  const condTownPrev = townStates.find(t => t.town === condTownName && t.turn === Math.max(1, turn - 1))
-
+  const story = useMemo(() => storyOf(today), [today])
 
   return (
-    <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 64px - 80px)', overflow: 'hidden' }}>
-      {/* Left: 3D World */}
-      <div style={{ flex: '0 0 60%', height: '100%', minHeight: 400 }}>
-        <CozyWorld
-          agents={agents}
-          towns={towns}
-          roads={roads}
-          agentStates={agentStates}
-          townStates={townStates}
-          decisions={currentTurnDecisions}
-          onTownClick={(name) => navigate(`/towns?town=${name}`)}
-        />
+    <div style={{ display: 'flex', gap: 20, height: 'calc(100vh - 64px - 96px - 24px)', minHeight: 560 }}>
+      {/* the map */}
+      <div style={{ flex: '0 0 56%', position: 'relative', borderRadius: 14, overflow: 'hidden', border: '1px solid var(--line-strong)', boxShadow: '0 3px 0 -1px var(--line)' }}>
+        <CozyWorld agents={agents} towns={towns} roads={roads} agentStates={agentStates} townStates={townStates}
+          decisions={decisions} onTownClick={name => navigate(`/towns?town=${name}`)} showLegend={false} />
+        <div style={{ position: 'absolute', left: 14, top: 14, zIndex: 3, display: 'flex', gap: 8 }}>
+          <div className="cz-overlay" style={{ position: 'static', padding: '6px 12px', fontSize: 15 }}>Day {turn} of {maxTurn}</div>
+          <button onClick={() => navigate('/world')} className="cz-btn" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Maximize2 size={14} /> Full screen and playback
+          </button>
+        </div>
       </div>
 
-      {/* Right: glass cards column */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 14, overflowY: 'auto', paddingRight: 4 }}>
-        {/* TabSwitch */}
-        <TabSwitch
-          tabs={['Live', 'Day', 'Week', 'Month']}
-          active={activeTab}
-          onChange={setActiveTab}
-        />
+      {/* the day, explained */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16, overflowY: 'auto', paddingRight: 4 }}>
+        <Panel style={{ flexShrink: 0 }} title={`Day ${turn} at a glance`} hint="Totals across all agents, compared with the day before.">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px 20px' }}>
+            <Figure label="Money held" value={num(wealth)} unit="coins" note={turn > 1 ? `${signed(wealth - wealthBefore)} since yesterday` : 'first day'} tone={wealth >= wealthBefore ? 'good' : 'bad'} />
+            <Figure label="Food held" value={num(food)} unit="food" note={turn > 1 ? `${signed(food - foodBefore)} since yesterday` : 'first day'} tone={food >= foodBefore ? 'good' : 'bad'} />
+            <Figure label="Deals between agents" value={trades} note={turn > 1 ? `${tradesBefore} the day before` : undefined} />
+            <Figure label="Went hungry" value={hungry} unit={hungry === 1 ? 'agent' : 'agents'} note={turn > 1 ? `${hungryBefore} the day before` : undefined} tone={hungry > hungryBefore ? 'bad' : hungry < hungryBefore ? 'good' : 'plain'} />
+          </div>
+        </Panel>
 
-        {/* KPI tiles 2x2 */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-          <KPITile
-            label="Total Wealth"
-            value={totalWealth.toFixed(0)}
-            unit="🪙"
-            progress={Math.min(100, (totalWealth / 500) * 100)}
-            icon="💰"
-          />
-          <KPITile
-            label="Trades"
-            value={tradesThisTurn}
-            unit="this turn"
-            progress={Math.min(100, (tradesThisTurn / 20) * 100)}
-            icon="🏪"
-          />
-          <KPITile
-            label="Hungry Events"
-            value={hungryCount}
-            unit="total"
-            progress={Math.min(100, (hungryCount / 50) * 100)}
-            icon="🍽️"
-          />
-          <KPITile
-            label="Tolls Paid"
-            value={tollsPaid.toFixed(1)}
-            unit="🪙"
-            progress={Math.min(100, (tollsPaid / 100) * 100)}
-            icon="🛤️"
-          />
-        </div>
+        <Panel style={{ flexShrink: 0 }} title="Market board" hint="Price of one food in each town, cheapest first. Click a town for details.">
+          <table className="ledger">
+            <thead><tr><th>Town</th><th className="r">Price</th><th className="r">Change</th><th className="r">Stock</th><th className="r">Bought / sold</th><th className="r">Here</th></tr></thead>
+            <tbody>
+              {board.map(t => (
+                <tr key={t.name} onClick={() => navigate(`/towns?town=${t.name}`)} style={{ cursor: 'pointer' }}>
+                  <td><span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}><TerrainGlyph terrain={t.terrain} size={22} /><strong>{t.name}</strong></span></td>
+                  <td className="r"><strong>{num(t.price, 1)}</strong></td>
+                  <td className="r" style={{ color: t.change > 0 ? 'var(--bad)' : t.change < 0 ? 'var(--good)' : 'var(--ink-faint)' }}>
+                    {t.change > 0 ? <ArrowUpRight size={13} /> : t.change < 0 ? <ArrowDownRight size={13} /> : <Minus size={13} />} {t.change ? num(Math.abs(t.change), 1) : ''}
+                  </td>
+                  <td className="r">{t.stock}</td>
+                  <td className="r" style={{ color: 'var(--ink-sub)' }}>{t.bought} / {t.sold}</td>
+                  <td className="r" style={{ color: 'var(--ink-sub)' }}>{t.people}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </Panel>
 
-        {/* Food Price Index ring */}
-        <GlassCard style={{ padding: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-            <RingGauge
-              value={priceRingPct}
-              label={avgPrice.toFixed(1)}
-              sublabel="avg price"
-              size={110}
-            />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 6 }}>
-                Food Price Index
-              </div>
-              <div style={{ fontSize: 11, color: '#6B7280', marginBottom: 10 }}>
-                Turn {turn} of {maxTurn}
-              </div>
-              {/* Top 3 town prices */}
-              {currentTownStates
-                .sort((a, b) => b.price - a.price)
-                .slice(0, 4)
-                .map(ts => (
-                  <div key={ts.town} style={{ marginBottom: 6 }}>
-                    <TickBar
-                      label={ts.town}
-                      value={ts.price}
-                      max={PRICE_MAX}
-                      valueLabel={`${ts.price.toFixed(1)}`}
-                    />
-                  </div>
-                ))
-              }
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Dot matrix price history */}
-        <GlassCard style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 10 }}>
-            Price History
-          </div>
-          <DotMatrixChart
-            data={dotData}
-            width={320}
-            height={100}
-          />
-          <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
-            {TOWN_NAMES.map((t, i) => (
-              <div key={t} style={{ fontSize: 10, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 3 }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#FF6B2C', opacity: 0.4 + i * 0.08 }} />
-                {t}
-              </div>
-            ))}
-          </div>
-        </GlassCard>
-
-        {/* Food supply vs demand */}
-        <GlassCard style={{ padding: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E', marginBottom: 10 }}>
-            Food Flow — Turn {turn}
-          </div>
-          <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
-            <RingGauge
-              value={totalBought > 0 ? Math.round((totalSold / (totalSold + totalBought)) * 100) : 50}
-              label={`${totalSold}`}
-              sublabel="sold"
-              size={80}
-            />
-            <div style={{ flex: 1 }}>
-              <TickBar label="Sold to market" value={totalSold} max={maxFlow} valueLabel={`${totalSold}`} />
-              <div style={{ marginTop: 6 }}>
-                <TickBar label="Bought from market" value={totalBought} max={maxFlow} valueLabel={`${totalBought}`} color="#7C9CB5" />
-              </div>
-            </div>
-          </div>
-        </GlassCard>
-
-        {/* Town Conditions card */}
-        <GlassCard style={{ padding: 16 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, color: '#1A1A2E' }}>Town Conditions</div>
-            <select
-              value={condTownName}
-              onChange={e => setSelectedTown(e.target.value)}
-              style={{
-                fontSize: 11, color: '#6B7280', border: '1px solid rgba(0,0,0,0.1)',
-                borderRadius: 8, padding: '3px 8px', background: 'rgba(255,255,255,0.7)', cursor: 'pointer',
-              }}
-            >
-              {TOWN_NAMES.map(t => <option key={t} value={t}>{t}</option>)}
-            </select>
-          </div>
-          {condTown ? (
-            <div>
-              <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#FF6B2C' }}>
-                    {condTown.price.toFixed(1)}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#6B7280' }}>price</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: '#1A1A2E' }}>
-                    {condTown.stock}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#6B7280' }}>stock</div>
-                </div>
-                <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: condTown.price > (condTownPrev?.price ?? condTown.price) ? '#E53935' : '#43A047' }}>
-                    {condTownPrev ? (condTown.price - condTownPrev.price >= 0 ? '+' : '') + (condTown.price - condTownPrev.price).toFixed(1) : '—'}
-                  </div>
-                  <div style={{ fontSize: 10, color: '#6B7280' }}>Δ price</div>
-                </div>
-              </div>
-              {/* Mini 5-turn price forecast row */}
-              <div style={{ display: 'flex', gap: 6 }}>
-                {Array.from({ length: 5 }, (_, i) => turn + i).map(t => {
-                  const ts = townStates.find(s => s.town === condTownName && s.turn === t)
-                  return (
-                    <div key={t} style={{
-                      flex: 1, textAlign: 'center', padding: '5px 4px',
-                      borderRadius: 8, background: t === turn ? 'rgba(255,107,44,0.12)' : 'rgba(0,0,0,0.04)',
-                    }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: t === turn ? '#FF6B2C' : '#1A1A2E' }}>
-                        {ts ? ts.price.toFixed(1) : '—'}
-                      </div>
-                      <div style={{ fontSize: 9, color: '#9CA3AF' }}>T{t}</div>
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-          ) : (
-            <div style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center', padding: '20px 0' }}>
-              {isLoading ? 'Loading…' : 'No data for this turn'}
-            </div>
-          )}
-        </GlassCard>
+        <Panel style={{ flexShrink: 0 }} title="What happened today" hint="Deals, rumours, travel and hunger on this day.">
+          {isLoading ? <div style={{ color: 'var(--ink-faint)', fontSize: 13 }}>Loading...</div>
+            : story.length === 0 ? <div style={{ color: 'var(--ink-faint)', fontSize: 13 }}>A quiet day: nobody traded, travelled or went hungry.</div>
+            : (
+              <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {story.map((s, i) => (
+                  <li key={i} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', fontSize: 13, lineHeight: 1.4 }}>
+                    <span style={{ flex: 'none', width: 26, height: 26, borderRadius: 7, display: 'grid', placeItems: 'center', background: 'var(--surface-2)', border: '1px solid var(--line)', color: s.tone }}><s.icon size={14} /></span>
+                    <span style={{ paddingTop: 3 }}>{s.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+        </Panel>
       </div>
     </div>
   )

@@ -1,14 +1,18 @@
 import { useState } from 'react'
-import { Map, Building2, Users, TrendingUp, List, Zap } from 'lucide-react'
+import { LayoutDashboard, Map, Building2, Users, TrendingUp, List, History, Gauge } from 'lucide-react'
 import { useSettings } from '../../hooks/useSettings'
 
 const NAV_ITEMS = [
-  { icon: Map, label: 'Overview', page: 'Overview' },
-  { icon: Building2, label: 'Towns', page: 'Towns' },
-  { icon: Users, label: 'Agents', page: 'Agents' },
-  { icon: TrendingUp, label: 'Economy', page: 'Economy' },
-  { icon: List, label: 'Decisions', page: 'Decisions' },
+  { icon: LayoutDashboard, page: 'Overview' },
+  { icon: Map, page: 'World' },
+  { icon: Building2, page: 'Towns' },
+  { icon: Users, page: 'Agents' },
+  { icon: TrendingUp, page: 'Economy' },
+  { icon: List, page: 'Decisions' },
+  { icon: History, page: 'Runs' },
 ] as const
+
+const ITEM = 44 // button height + gap
 
 interface SideRailProps {
   activePage: string
@@ -18,113 +22,76 @@ interface SideRailProps {
 export function SideRail({ activePage, onPageChange }: SideRailProps) {
   const [tooltip, setTooltip] = useState<string | null>(null)
   const { lowGraphics, toggleLowGraphics } = useSettings()
+  const index = NAV_ITEMS.findIndex(i => i.page === activePage)
 
   return (
     <div style={{
-      position: 'fixed',
-      left: 0,
-      top: 0,
-      bottom: 0,
-      width: 56,
-      zIndex: 99,
-      background: 'rgba(255,255,255,0.7)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      borderRight: '1px solid rgba(255,255,255,0.9)',
-      boxShadow: '2px 0 16px rgba(0,0,0,0.05)',
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      paddingTop: 80,
-      paddingBottom: 20,
-      gap: 4,
+      position: 'fixed', left: 0, top: 0, bottom: 0, width: 56, zIndex: 99,
+      background: 'var(--surface)', borderRight: '1px solid var(--line)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', paddingTop: 80, paddingBottom: 20,
     }}>
-      {NAV_ITEMS.map(({ icon: Icon, label, page }) => {
-        const isActive = activePage === page
-        return (
-          <div key={page} style={{ position: 'relative' }}>
-            <button
-              onClick={() => onPageChange(page)}
-              onMouseEnter={() => setTooltip(label)}
-              onMouseLeave={() => setTooltip(null)}
-              title={label}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                border: 'none',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                background: isActive ? '#FF6B2C' : 'transparent',
-                color: isActive ? '#fff' : '#6B7280',
-                transition: 'all 0.15s ease',
-                boxShadow: isActive ? '0 2px 10px rgba(255,107,44,0.35)' : 'none',
-              }}
-            >
-              <Icon size={18} />
-            </button>
-            {tooltip === label && (
-              <div style={{
-                position: 'absolute',
-                left: 48,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: '#1A1A2E',
-                color: '#fff',
-                padding: '4px 10px',
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 600,
-                whiteSpace: 'nowrap',
-                pointerEvents: 'none',
-                zIndex: 200,
-                boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-              }}>
-                {label}
-                <div style={{
-                  position: 'absolute',
-                  left: -4,
-                  top: '50%',
-                  width: 8,
-                  height: 8,
-                  background: '#1A1A2E',
-                  transform: 'rotate(45deg) translateY(-50%)',
-                }} />
-              </div>
-            )}
-          </div>
-        )
-      })}
-      {/* Low graphics toggle at the bottom */}
+      <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {/* the active marker glides between items */}
+        <div aria-hidden style={{
+          position: 'absolute', left: 0, top: 0, width: 40, height: 40, borderRadius: 11,
+          background: 'var(--accent)', boxShadow: 'var(--shadow-press)',
+          transform: `translateY(${Math.max(0, index) * ITEM}px)`, opacity: index < 0 ? 0 : 1,
+          transition: 'transform 0.35s var(--ease), opacity 0.2s',
+        }} />
+        {NAV_ITEMS.map(({ icon: Icon, page }) => {
+          const isActive = activePage === page
+          return (
+            <div key={page} style={{ position: 'relative' }}>
+              <button
+                onClick={() => onPageChange(page)}
+                onMouseEnter={() => setTooltip(page)}
+                onMouseLeave={() => setTooltip(null)}
+                aria-label={page}
+                aria-current={isActive ? 'page' : undefined}
+                style={{
+                  position: 'relative', width: 40, height: 40, borderRadius: 11, border: 'none', cursor: 'pointer',
+                  display: 'grid', placeItems: 'center', background: 'transparent',
+                  color: isActive ? 'var(--accent-ink)' : 'var(--ink-sub)',
+                }}
+              >
+                <Icon size={18} />
+              </button>
+              {tooltip === page && <Tip text={page} />}
+            </div>
+          )
+        })}
+      </div>
       <div style={{ marginTop: 'auto', position: 'relative' }}>
         <button
           onClick={toggleLowGraphics}
-          onMouseEnter={() => setTooltip('Low Graphics')}
+          onMouseEnter={() => setTooltip('low')}
           onMouseLeave={() => setTooltip(null)}
-          title="Toggle low graphics"
+          aria-label="Toggle low graphics"
+          aria-pressed={lowGraphics}
           style={{
-            width: 40, height: 40, borderRadius: 12, border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: lowGraphics ? 'rgba(255,107,44,0.15)' : 'transparent',
-            color: lowGraphics ? '#FF6B2C' : '#9CA3AF',
-            transition: 'all 0.15s ease',
+            width: 40, height: 40, borderRadius: 11, border: 'none', cursor: 'pointer',
+            display: 'grid', placeItems: 'center',
+            background: lowGraphics ? 'var(--accent-soft)' : 'transparent',
+            color: lowGraphics ? 'var(--accent-strong)' : 'var(--ink-faint)',
           }}
         >
-          <Zap size={16} />
+          <Gauge size={16} />
         </button>
-        {tooltip === 'Low Graphics' && (
-          <div style={{
-            position: 'absolute', left: 48, top: '50%', transform: 'translateY(-50%)',
-            background: '#1A1A2E', color: '#fff', padding: '4px 10px',
-            borderRadius: 8, fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap',
-            pointerEvents: 'none', zIndex: 200, boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
-          }}>
-            {lowGraphics ? '⚡ Low Graphics ON' : '⚡ Low Graphics OFF'}
-          </div>
-        )}
+        {tooltip === 'low' && <Tip text={lowGraphics ? 'Low graphics: on' : 'Low graphics: off'} />}
       </div>
+    </div>
+  )
+}
+
+function Tip({ text }: { text: string }) {
+  return (
+    <div style={{
+      position: 'absolute', left: 50, top: '50%', transform: 'translateY(-50%)',
+      background: 'var(--ink)', color: 'var(--surface)', padding: '4px 10px', borderRadius: 7,
+      fontSize: 12, fontWeight: 600, whiteSpace: 'nowrap', pointerEvents: 'none', zIndex: 200,
+      animation: 'page-in 0.18s var(--ease) both',
+    }}>
+      {text}
     </div>
   )
 }

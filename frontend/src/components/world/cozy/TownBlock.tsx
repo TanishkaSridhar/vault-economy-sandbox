@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Instances, Instance } from '@react-three/drei'
 import * as THREE from 'three'
 import { C, TERRAIN_ACCENT, TERRAIN_GROUND } from './palette'
-import { PLAZA, PLAZA_H, type Spot, type XZ } from './layout'
+import { PLAZA, PLAZA_H, TOWN_SCALE, type Spot, type XZ } from './layout'
 import { blobGeometry, ribbonGeometry } from './shapes'
 import { toon, hashString, rng } from './toon'
 import {
@@ -46,7 +46,7 @@ export function TownBlock(p: TownBlockProps) {
   const H = PLAZA_H
 
   return (
-    <group position={[center[0], 0, center[1]]}>
+    <group position={[center[0], 0, center[1]]} scale={TOWN_SCALE}>
       <StaticBatch deps={[name, t, spots, low]}>
       {/* terrain tint around the plaza */}
       <mesh geometry={apron} material={toon(TERRAIN_GROUND[t])} position={[0, 0.015, 0]} receiveShadow />

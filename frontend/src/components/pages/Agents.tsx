@@ -1,182 +1,132 @@
 import { useState, useMemo } from 'react'
+import { useSearchParams, Link } from 'react-router-dom'
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from 'recharts'
 import { GlassCard } from '../ui/GlassCard'
+import { Panel } from '../ui/Panel'
 import { PageHeader } from '../layout/PageHeader'
 import { Badge } from '../ui/Badge'
 import { Sparkline } from '../ui/Sparkline'
-import { TickBar } from '../ui/TickBar'
+import { SlidingTabs } from '../ui/SlidingTabs'
 import { useTurn } from '../../hooks/useTurn'
 import { Portrait, PortraitRenderer } from '../world/cozy/Portraits'
+import { roleStyle } from '../world/cozy/palette'
 import { useRunData, getAgentStatesAtTurn } from '../../hooks/useSimData'
 
-const ROLE_COLOURS = {
-  Farmer: { bg: 'rgba(76,175,80,0.1)', border: 'rgba(76,175,80,0.3)', text: '#2E7D32' },
-  Trader: { bg: 'rgba(255,107,44,0.1)', border: 'rgba(255,107,44,0.3)', text: '#D94F10' },
-  Diplomat: { bg: 'rgba(100,181,246,0.15)', border: 'rgba(100,181,246,0.4)', text: '#1565C0' },
-}
+const SORTS = ['Richest', 'Name', 'Role'] as const
+const ordinal = (n: number) => n + (n % 10 === 1 && n !== 11 ? 'st' : n % 10 === 2 && n !== 12 ? 'nd' : n % 10 === 3 && n !== 13 ? 'rd' : 'th')
+const repWord = (r?: number) => r == null ? null : r >= 0.4 ? 'excellent' : r >= 0.15 ? 'good' : r > -0.15 ? 'neutral' : r > -0.4 ? 'poor' : 'bad'
 
 export function Agents() {
   const { turn, runId } = useTurn()
   const { agents, agentStates } = useRunData(runId)
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
-  const [sortBy, setSortBy] = useState<'money' | 'name' | 'role'>('money')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const [sortBy, setSortBy] = useState<typeof SORTS[number]>('Richest')
 
-  const currentAgentStates = useMemo(
-    () => getAgentStatesAtTurn(agentStates, turn),
-    [agentStates, turn]
-  )
-
-  // Build money history per agent
-  const agentMoneyHistory = useMemo(() => {
-    const hist: Record<string, number[]> = {}
-    for (let t = 1; t <= turn; t++) {
-      agentStates.filter(s => s.turn === t).forEach(s => {
-        if (!hist[s.agent]) hist[s.agent] = []
-        hist[s.agent].push(s.money)
-      })
-    }
-    return hist
+  const now = useMemo(() => getAgentStatesAtTurn(agentStates, turn), [agentStates, turn])
+  const history = useMemo(() => {
+    const h: Record<string, number[]> = {}
+    for (const s of agentStates) if (s.turn <= turn) (h[s.agent] ??= []).push(s.money)
+    return h
   }, [agentStates, turn])
 
-  const sorted = useMemo(() => {
-    const list = agents.map(a => {
-      const state = currentAgentStates.find(s => s.agent === a.name)
-      return { ...a, state }
-    })
-    if (sortBy === 'money') return list.sort((a, b) => (b.state?.money ?? 0) - (a.state?.money ?? 0))
-    if (sortBy === 'name') return list.sort((a, b) => a.name.localeCompare(b.name))
-    if (sortBy === 'role') return list.sort((a, b) => a.role.localeCompare(b.role))
-    return list
-  }, [agents, currentAgentStates, sortBy])
+  const byMoney = useMemo(() => [...now].sort((a, b) => b.money - a.money).map(s => s.agent), [now])
+  const list = useMemo(() => {
+    const l = agents.map(a => ({ ...a, state: now.find(s => s.agent === a.name), rank: byMoney.indexOf(a.name) + 1 }))
+    if (sortBy === 'Richest') return l.sort((a, b) => a.rank - b.rank)
+    if (sortBy === 'Name') return l.sort((a, b) => a.name.localeCompare(b.name))
+    return l.sort((a, b) => a.role.localeCompare(b.role) || a.rank - b.rank)
+  }, [agents, now, byMoney, sortBy])
 
-  const selectedAgentData = selectedAgent ? sorted.find(a => a.name === selectedAgent) : null
-  const selectedHistory = selectedAgent ? (agentMoneyHistory[selectedAgent] ?? []) : []
+  // Always one agent open (the one in the URL, else the richest), so picking someone
+  // swaps the detail in place instead of reflowing the whole grid.
+  const asked = searchParams.get('agent')
+  const selected = asked && agents.some(a => a.name === asked) ? asked : byMoney[0] ?? agents[0]?.name ?? null
+  const setSelected = (name: string) => setSearchParams({ agent: name }, { replace: true })
+  const sel = selected ? list.find(a => a.name === selected) : null
+  const selHistory = useMemo(() => selected ? agentStates.filter(s => s.agent === selected).sort((a, b) => a.turn - b.turn) : [], [agentStates, selected])
+  const hungry = now.filter(s => s.food <= 0).length
+  const richest = list.find(a => a.rank === 1)
 
   return (
     <div>
       <PortraitRenderer names={agents.map(a => a.name)} />
-      <PageHeader
-        title="Agents"
-        subtitle="All 16 simulation agents"
-        actions={
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['money', 'name', 'role'] as const).map(s => (
-              <button key={s} onClick={() => setSortBy(s)} style={{
-                padding: '5px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600, cursor: 'pointer',
-                background: sortBy === s ? '#FF6B2C' : 'rgba(255,255,255,0.7)',
-                color: sortBy === s ? '#fff' : '#6B7280',
-                border: sortBy === s ? 'none' : '1px solid rgba(0,0,0,0.1)',
-              }}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
-              </button>
-            ))}
-          </div>
-        }
-      />
+      <PageHeader title="Agents" subtitle="Everyone in the valley: what they hold today and how their fortunes have changed."
+        facts={now.length ? [
+          { label: 'Agents', value: agents.length },
+          { label: 'Richest', value: richest ? `${richest.name}, ${richest.state?.money.toFixed(0)} coins` : '-' },
+          { label: 'Out of food', value: hungry },
+        ] : undefined}
+        actions={<SlidingTabs tabs={SORTS} active={sortBy} onChange={setSortBy} size="sm" ariaLabel="Sort agents" />} />
 
-      <div style={{ display: 'flex', gap: 20 }}>
-        {/* Agent grid */}
-        <div style={{ flex: 1 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))', gap: 12 }}>
-            {sorted.map((agent, idx) => {
-              const roleStyle = ROLE_COLOURS[agent.role as keyof typeof ROLE_COLOURS] ?? ROLE_COLOURS.Trader
-              const isSelected = selectedAgent === agent.name
-              const moneyHistory = agentMoneyHistory[agent.name] ?? []
-              const rank = idx + 1
-              return (
-                <GlassCard
-                  key={agent.name}
-                  hoverable
-                  onClick={() => setSelectedAgent(isSelected ? null : agent.name)}
-                  style={{
-                    padding: 14,
-                    border: isSelected ? '1.5px solid #FF6B2C' : `1px solid ${roleStyle.border}`,
-                    background: isSelected ? 'rgba(255,107,44,0.06)' : `${roleStyle.bg}`,
-                    cursor: 'pointer',
-                  }}
-                >
-                  {/* Rank */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: rank <= 3 ? '#FF6B2C' : '#9CA3AF' }}>
-                      #{rank}
-                    </span>
-                    <Badge role={agent.role as any} size="sm" />
+      <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start' }}>
+        <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 12 }}>
+          {list.map(agent => {
+            const rs = roleStyle(agent.role)
+            const isSel = selected === agent.name
+            const money = agent.state?.money ?? agent.start_money
+            const food = agent.state?.food ?? agent.start_food
+            return (
+              <GlassCard key={agent.name} hoverable={!isSel} onClick={() => setSelected(agent.name)}
+                style={{ padding: 0, overflow: 'hidden', ...(isSel ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 2px var(--accent)' } : {}) }}>
+                <div style={{ background: rs.color, padding: '8px 12px 30px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: rs.ink, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{agent.role}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: rs.ink }}>{ordinal(agent.rank)} richest</span>
+                </div>
+                <div style={{ marginTop: -26 }}><Portrait name={agent.name} role={agent.role} size={58} /></div>
+                <div style={{ textAlign: 'center', padding: '6px 12px 0' }}>
+                  <div style={{ fontFamily: 'var(--display)', fontSize: 19, lineHeight: 1.1 }}>{agent.name}</div>
+                  <div style={{ fontSize: 11.5, color: 'var(--ink-sub)', marginTop: 2 }}>
+                    in {agent.state?.town ?? agent.start_town}{agent.state?.destination && agent.state.destination !== agent.state.town ? `, heading for ${agent.state.destination}` : ''}
                   </div>
-                  {/* Villager portrait */}
-                  <div style={{ marginBottom: 8 }}>
-                    <Portrait name={agent.name} role={agent.role} size={60} />
+                </div>
+                <div style={{ display: 'flex', margin: '10px 0 0', borderTop: '1px solid var(--line)' }}>
+                  <div style={{ flex: 1, padding: '7px 12px' }}>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Coins</div>
+                    <div style={{ fontWeight: 800, fontSize: 16 }}>{money.toFixed(0)}</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1A1A2E' }}>{agent.name}</div>
-                    <div style={{ fontSize: 10, color: '#6B7280', marginTop: 2 }}>
-                      {agent.state?.town ?? agent.start_town}
-                    </div>
+                  <div style={{ flex: 1, padding: '7px 12px', borderLeft: '1px solid var(--line)' }}>
+                    <div style={{ fontSize: 10.5, color: 'var(--ink-faint)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Food</div>
+                    <div style={{ fontWeight: 800, fontSize: 16, color: food <= 0 ? 'var(--bad)' : undefined }}>{food}</div>
                   </div>
-                  <div style={{ marginTop: 10, display: 'flex', justifyContent: 'space-between', fontSize: 11 }}>
-                    <span style={{ color: '#FF6B2C', fontWeight: 700 }}>
-                      💰 {(agent.state?.money ?? agent.start_money).toFixed(0)}
-                    </span>
-                    <span style={{ color: '#6B7280' }}>
-                      🌾 {agent.state?.food ?? agent.start_food}
-                    </span>
-                  </div>
-                  {moneyHistory.length > 1 && (
-                    <div style={{ marginTop: 8 }}>
-                      <Sparkline data={moneyHistory} width={130} height={28} />
-                    </div>
-                  )}
-                </GlassCard>
-              )
-            })}
-          </div>
+                </div>
+                {(history[agent.name]?.length ?? 0) > 1 && (
+                  <div style={{ padding: '0 12px 10px' }}><Sparkline data={history[agent.name]} width={150} height={26} color={rs.ink} /></div>
+                )}
+              </GlassCard>
+            )
+          })}
         </div>
 
-        {/* Detail panel */}
-        {selectedAgentData && (
-          <div style={{ flex: '0 0 280px' }}>
-            <GlassCard style={{ padding: 20, position: 'sticky', top: 0 }}>
-              {/* Header */}
-              <div style={{ textAlign: 'center', marginBottom: 16 }}>
-                <div style={{ marginBottom: 10 }}>
-                  <Portrait name={selectedAgentData.name} role={selectedAgentData.role} size={88} />
-                </div>
-                <div style={{ fontSize: 20, fontWeight: 800, color: '#1A1A2E' }}>{selectedAgentData.name}</div>
-                <Badge role={selectedAgentData.role as any} size="md" />
+        {sel && (
+          <div style={{ flex: '0 0 340px', position: 'sticky', top: 88 }}>
+            <Panel title={sel.name} hint={`${sel.role}, started in ${sel.start_town} with ${sel.start_money} coins and ${sel.start_food} food`}>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12 }}>
+                <Portrait name={sel.name} role={sel.role} size={72} />
+                <Badge role={sel.role as 'Farmer' | 'Trader' | 'Diplomat'} />
               </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#6B7280' }}>Location</span>
-                  <span style={{ fontWeight: 600 }}>{selectedAgentData.state?.town ?? selectedAgentData.start_town}</span>
-                </div>
-                {selectedAgentData.state?.destination && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                    <span style={{ color: '#6B7280' }}>Travelling to</span>
-                    <span style={{ fontWeight: 600, color: '#FF6B2C' }}>{selectedAgentData.state.destination}</span>
-                  </div>
-                )}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#6B7280' }}>Money</span>
-                  <span style={{ fontWeight: 700, color: '#FF6B2C' }}>
-                    💰 {(selectedAgentData.state?.money ?? selectedAgentData.start_money).toFixed(2)}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
-                  <span style={{ color: '#6B7280' }}>Food</span>
-                  <span style={{ fontWeight: 600 }}>🌾 {selectedAgentData.state?.food ?? selectedAgentData.start_food}</span>
-                </div>
-
-                <div style={{ marginTop: 6 }}>
-                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 6 }}>Wealth over time</div>
-                  <Sparkline data={selectedHistory} width={240} height={50} />
-                </div>
-
-                <TickBar
-                  label="Relative wealth"
-                  value={selectedAgentData.state?.money ?? 0}
-                  max={Math.max(...currentAgentStates.map(s => s.money), 1)}
-                />
-              </div>
-            </GlassCard>
+              <table className="ledger">
+                <tbody>
+                  <tr><td>Where</td><td className="r"><Link to={`/towns?town=${sel.state?.town ?? sel.start_town}`} style={{ color: 'var(--accent-strong)', fontWeight: 700 }}>{sel.state?.town ?? sel.start_town}</Link></td></tr>
+                  {sel.state?.destination && sel.state.destination !== sel.state.town && <tr><td>Heading for</td><td className="r">{sel.state.destination}</td></tr>}
+                  <tr><td>Coins</td><td className="r"><strong>{(sel.state?.money ?? sel.start_money).toFixed(1)}</strong></td></tr>
+                  <tr><td>Food</td><td className="r"><strong>{sel.state?.food ?? sel.start_food}</strong></td></tr>
+                  <tr><td>Rank by wealth</td><td className="r">{ordinal(sel.rank)} of {agents.length}</td></tr>
+                  {sel.state?.reputation != null && <tr><td>Reputation</td><td className="r">{repWord(sel.state.reputation)} ({sel.state.reputation >= 0 ? '+' : ''}{sel.state.reputation.toFixed(2)})</td></tr>}
+                </tbody>
+              </table>
+              <div style={{ fontSize: 12, color: 'var(--ink-sub)', margin: '14px 0 4px', fontWeight: 600 }}>Coins and food, day by day</div>
+              <ResponsiveContainer width="100%" height={150}>
+                <LineChart data={selHistory} margin={{ top: 4, right: 6, left: -22, bottom: 0 }}>
+                  <CartesianGrid stroke="#ddcfb1" strokeDasharray="3 4" vertical={false} />
+                  <XAxis dataKey="turn" tick={{ fontSize: 10.5, fill: '#7f6850' }} tickLine={false} axisLine={{ stroke: '#cbb993' }} />
+                  <YAxis tick={{ fontSize: 10.5, fill: '#7f6850' }} tickLine={false} axisLine={false} />
+                  <Tooltip contentStyle={{ background: '#faf6ec', border: '1px solid #cbb993', borderRadius: 8, fontSize: 12 }} labelFormatter={t => `Day ${t}`} />
+                  <ReferenceLine x={turn} stroke="#8a5f3c" strokeDasharray="4 3" />
+                  <Line isAnimationActive={false} type="monotone" dataKey="money" name="coins" stroke="#5b7a34" strokeWidth={2.2} dot={false} />
+                  <Line isAnimationActive={false} type="monotone" dataKey="food" name="food" stroke="#c9962e" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
+            </Panel>
           </div>
         )}
       </div>

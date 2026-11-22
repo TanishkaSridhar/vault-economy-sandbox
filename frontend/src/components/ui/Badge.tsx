@@ -4,28 +4,13 @@ interface BadgeProps {
 }
 
 const ROLE_CONFIG = {
-  Farmer: {
-    icon: '🌾',
-    bg: 'rgba(134,239,172,0.2)',
-    border: 'rgba(134,239,172,0.4)',
-    color: '#15803d',
-  },
-  Trader: {
-    icon: '🏪',
-    bg: 'rgba(255,107,44,0.12)',
-    border: 'rgba(255,107,44,0.3)',
-    color: '#D94F10',
-  },
-  Diplomat: {
-    icon: '🕊️',
-    bg: 'rgba(147,197,253,0.2)',
-    border: 'rgba(147,197,253,0.4)',
-    color: '#1d4ed8',
-  },
+  Farmer: { bg: '#dfe6c4', border: '#c3d0a0', color: '#44602a' },
+  Trader: { bg: '#f1dfbd', border: '#dfc495', color: '#7a4f24' },
+  Diplomat: { bg: '#d6e5e6', border: '#b3cdd0', color: '#33606b' },
 }
 
 export function Badge({ role, size = 'md' }: BadgeProps) {
-  const cfg = ROLE_CONFIG[role]
+  const cfg = ROLE_CONFIG[role] ?? ROLE_CONFIG.Trader
   const small = size === 'sm'
 
   return (
@@ -41,7 +26,7 @@ export function Badge({ role, size = 'md' }: BadgeProps) {
       fontWeight: 600,
       color: cfg.color,
     }}>
-      <span style={{ fontSize: small ? 12 : 14 }}>{cfg.icon}</span>
+      <span style={{ width: small ? 6 : 7, height: small ? 6 : 7, borderRadius: '50%', background: cfg.color }} />
       {role}
     </div>
   )

@@ -3,14 +3,21 @@ import { hashString, rng } from './toon'
 
 export type XZ = [number, number]
 
-/** Side length of a town plaza (world units). */
+/** Side length of a town plaza in the town's own (unscaled) model units. */
 export const PLAZA = 7
 export const PLAZA_H = 0.18
+/** Every town model is drawn this much bigger, so many villagers fit without clumping. */
+export const TOWN_SCALE = 1.8
+/** Plaza side length and top height in world units. */
+export const TOWN_SIZE = PLAZA * TOWN_SCALE
+export const PLAZA_TOP = PLAZA_H * TOWN_SCALE
+/** How much the hand-made map is spread out compared with its original spacing. */
+const SPREAD = 1.8
 /** Minimum distance between town centres. */
-export const MIN_TOWN_GAP = 14
+export const MIN_TOWN_GAP = 14 * SPREAD
 
 // Hand-made layout for the default scenario: every road is short and none cross.
-const DEFAULT_LAYOUT: Record<string, XZ> = {
+const BASE_LAYOUT: Record<string, XZ> = {
   Woodhaven: [0, -15],
   Riverton: [-15, -7],
   Hill: [15, -7],
@@ -20,6 +27,9 @@ const DEFAULT_LAYOUT: Record<string, XZ> = {
   Saltmarsh: [0, 18],
   Sandreach: [16, 16],
 }
+const DEFAULT_LAYOUT: Record<string, XZ> = Object.fromEntries(
+  Object.entries(BASE_LAYOUT).map(([k, [x, z]]) => [k, [x * SPREAD, z * SPREAD] as XZ]),
+)
 
 export interface RoadIn { town_a: string; town_b: string; terrain: string; distance?: number; coins?: number; food?: number }
 
@@ -100,7 +110,7 @@ export const roadKey = (a: string, b: string) => [a, b].sort().join('|')
 /** Where a road leaves a plaza: the point on the plaza border facing the other town. */
 function plazaExit(c: XZ, toward: XZ): THREE.Vector3 {
   const dx = toward[0] - c[0], dz = toward[1] - c[1]
-  const half = PLAZA / 2 + 0.2
+  const half = TOWN_SIZE / 2 + 0.25
   const s = half / Math.max(Math.abs(dx), Math.abs(dz))
   return new THREE.Vector3(c[0] + dx * s, 0, c[1] + dz * s)
 }
@@ -214,17 +224,41 @@ export function landmarkSpots(name: string, terrain: string, layout: Record<stri
   return picked
 }
 
-// Standing spots on a plaza (local coords; +z faces the camera). The back row holds buildings.
-const SLOTS: XZ[] = [
-  // front row by the stall (traders first)
-  [-2.25, 1.0], [-0.75, 1.05], [0.75, 1.05], [2.1, 1.1],
-  // middle row
-  [-1.45, 2.45], [0, 2.5], [1.45, 2.45], [2.85, 2.55], [-2.85, 2.2],
-  // on the grass in front of the plaza
-  [-0.75, 4.05], [0.75, 4.05], [-2.25, 4.0], [2.25, 4.0],
-  // beside the plaza
-  [4.35, 1.0], [4.35, 2.6], [-4.35, 1.4],
-]
+// ---------- where villagers stand ----------
+// World-unit offsets from the town centre; +z faces the camera, the back of the plaza holds buildings.
+// A roomy grid on the front half of the plaza, then a ring on the grass around it, so even a crowded
+// town keeps every villager (and its name tag) apart.
+// a villager's head is about 1.25 units wide, so leave a clear gap between neighbours
+// Rows are further apart than columns because the camera's angle squashes depth, and every other
+// row is shifted half a step (like a honeycomb) so nobody stands right behind someone else.
+const SPACING_X = 2.5
+const SPACING_Z = 2.5
+
+function buildSlots(): XZ[] {
+  const half = TOWN_SIZE / 2
+  const out: XZ[] = []
+  for (let z = 0.75, row = 0; z <= half - 0.4; z += SPACING_Z, row++) {
+    for (let x = -half + 0.85 + (row % 2) * (SPACING_X / 2); x <= half - 0.85; x += SPACING_X) {
+      // keep clear of the lawn corner (front-left) and the bench (right side, near the middle)
+      if (x < -half + 2.1 && z > half - 2.1) continue
+      if (x > half - 1.6 && z < 1.3) continue
+      out.push([+x.toFixed(2), +z.toFixed(2)])
+    }
+  }
+  // closest to the market stall first
+  out.sort((a, b) => Math.hypot(a[0], a[1] - 1.2) - Math.hypot(b[0], b[1] - 1.2))
+  // overflow: a ring on the grass in front of and beside the plaza
+  const ring: XZ[] = []
+  for (const [r, count] of [[half + 1.8, 12], [half + 4.2, 15]] as const) {
+    for (let i = 0; i < count; i++) {
+      const a = -0.35 + (i / (count - 1)) * (Math.PI + 0.7) // from the right side, round the front, to the left side
+      ring.push([+(Math.cos(a) * r).toFixed(2), +(Math.sin(a) * r).toFixed(2)])
+    }
+  }
+  ring.sort((a, b) => Math.hypot(a[0], a[1]) - Math.hypot(b[0], b[1]) || Math.abs(a[0]) - Math.abs(b[0]))
+  return [...out, ...ring]
+}
+const SLOTS = buildSlots()
 const ROLE_ORDER: Record<string, number> = { Trader: 0, Farmer: 1, Diplomat: 2 }
 
 /** Stable standing spot for each agent currently in a town: traders nearest the stall. */
@@ -235,8 +269,9 @@ export function townSlots(agentsHere: { name: string; role: string }[], center: 
   sorted.forEach((a, i) => {
     let local: XZ
     if (i < SLOTS.length) local = SLOTS[i]
-    else { const r = rng(hashString(a.name)); local = [(r() - 0.5) * 5.6, 0.4 + r() * 2.7] }
-    out.set(a.name, new THREE.Vector3(center[0] + local[0], PLAZA_H, center[1] + local[1]))
+    else { const r = rng(hashString(a.name)); const ang = r() * Math.PI * 2; local = [Math.cos(ang) * (TOWN_SIZE / 2 + 6.6), Math.sin(ang) * (TOWN_SIZE / 2 + 6.6)] }
+    const onPlaza = Math.abs(local[0]) <= TOWN_SIZE / 2 && Math.abs(local[1]) <= TOWN_SIZE / 2
+    out.set(a.name, new THREE.Vector3(center[0] + local[0], onPlaza ? PLAZA_TOP : 0.02, center[1] + local[1]))
   })
   return out
 }

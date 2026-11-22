@@ -7,12 +7,14 @@ import { Agents } from './components/pages/Agents'
 import { Economy } from './components/pages/Economy'
 import { Decisions } from './components/pages/Decisions'
 import { Runs } from './components/pages/Runs'
+import { World } from './components/pages/World'
 import { useTurn, NO_RUN } from './hooks/useTurn'
 import { useRuns } from './hooks/useSimData'
 import { useEffect } from 'react'
 
 const PAGE_PATHS: Record<string, string> = {
   Overview: '/overview',
+  World: '/world',
   Towns: '/towns',
   Agents: '/agents',
   Economy: '/economy',
@@ -50,10 +52,11 @@ function AppInner() {
   return (
     <>
       <RunSyncer />
-      <AppLayout activePage={activePage} onPageChange={handlePageChange}>
+      <AppLayout activePage={activePage} onPageChange={handlePageChange} fullBleed={activePage === 'World'}>
         <Routes>
           <Route path="/" element={<Navigate to="/overview" replace />} />
           <Route path="/overview" element={<Overview />} />
+          <Route path="/world" element={<World />} />
           <Route path="/towns" element={<Towns />} />
           <Route path="/agents" element={<Agents />} />
           <Route path="/economy" element={<Economy />} />
@@ -62,7 +65,8 @@ function AppInner() {
           <Route path="*" element={<Navigate to="/overview" replace />} />
         </Routes>
       </AppLayout>
-      <Timeline />
+      {/* the World page has its own player */}
+      {activePage !== 'World' && <Timeline />}
     </>
   )
 }
