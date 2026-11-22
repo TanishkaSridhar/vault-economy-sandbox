@@ -1,7 +1,7 @@
 import * as THREE from 'three'
 import { rng } from './toon'
 
-/** Flat strip following a polyline (roads, rivers). Lies in the XZ plane at height y. */
+/** Strip following a polyline (roads, rivers), y above each point (so it can climb hills). */
 export function ribbonGeometry(points: THREE.Vector3[], width: number, y = 0) {
   const pos: number[] = []
   const idx: number[] = []
@@ -10,7 +10,7 @@ export function ribbonGeometry(points: THREE.Vector3[], width: number, y = 0) {
     const a = points[Math.max(0, i - 1)], b = points[Math.min(points.length - 1, i + 1)]
     const dir = new THREE.Vector3().subVectors(b, a).setY(0).normalize()
     const n = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(width / 2)
-    pos.push(p.x + n.x, y, p.z + n.z, p.x - n.x, y, p.z - n.z)
+    pos.push(p.x + n.x, p.y + y, p.z + n.z, p.x - n.x, p.y + y, p.z - n.z)
     if (i > 0) { const k = i * 2; idx.push(k - 2, k, k - 1, k - 1, k, k + 1) }
   }
   const g = new THREE.BufferGeometry()

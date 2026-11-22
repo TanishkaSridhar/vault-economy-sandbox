@@ -24,8 +24,13 @@ export function LabelProjector({ anchorsRef, elsRef, baseZoomRef }: {
 }) {
   useFrame(({ camera, size }) => {
     const zoom = (camera as THREE.OrthographicCamera).zoom
-    // labels grow more slowly than the world so a close-up isn't buried in pills
-    const s = Math.max(0.8, Math.min(1.2, Math.sqrt(zoom / (baseZoomRef.current || zoom))))
+    // Labels grow more slowly than the world so a close-up isn't buried in pills, and shrink
+    // when zoomed out to the whole map, where they also drop the role word (see .cz-far).
+    const rel = zoom / (baseZoomRef.current || zoom)
+    const s = Math.max(0.7, Math.min(1.15, 0.8 * Math.sqrt(rel)))
+    const host = elsRef.current.values().next().value?.parentElement
+    const far = rel < 1.35
+    if (host && host.classList.contains('cz-far') !== far) host.classList.toggle('cz-far', far)
     const tags: Placed[] = []
     const others: Placed[] = []
     for (const [id, el] of elsRef.current) {
@@ -66,6 +71,16 @@ export function LabelProjector({ anchorsRef, elsRef, baseZoomRef }: {
       }
       t.y = y
       placed.push(t)
+    }
+
+    // a town's name always sits clear above the villagers' name tags around it
+    for (const o of others) {
+      if (!o.el.dataset.town) continue
+      for (let guard = 0; guard < 24; guard++) {
+        const hit = placed.find(p => Math.abs(p.x - o.x) < (p.w + o.w) / 2 + 2 && o.y > p.y - p.h - 1 && o.y - o.h < p.y + 1)
+        if (!hit) break
+        o.y = hit.y - hit.h - 3
+      }
     }
 
     for (const p of [...others, ...tags]) {

@@ -17,6 +17,8 @@ export interface TownBlockProps {
   name: string
   terrain: string
   center: XZ
+  /** Height of the ground this town stands on. */
+  lift?: number
   spots: Spot[]
   stock?: number
   hovered: boolean
@@ -37,7 +39,7 @@ const THEMES: Record<string, Theme> = {
 }
 
 export function TownBlock(p: TownBlockProps) {
-  const { name, terrain, center, spots, stock, hovered, onHover, onClick } = p
+  const { name, terrain, center, lift = 0, spots, stock, hovered, onHover, onClick } = p
   const { low } = useCozy()
   const t = THEMES[terrain] ? terrain : 'PLAINS' // safe default for unknown terrains
   const theme = THEMES[t]
@@ -46,7 +48,7 @@ export function TownBlock(p: TownBlockProps) {
   const H = PLAZA_H
 
   return (
-    <group position={[center[0], 0, center[1]]} scale={TOWN_SCALE}>
+    <group position={[center[0], lift, center[1]]} scale={TOWN_SCALE}>
       <StaticBatch deps={[name, t, spots, low]}>
       {/* terrain tint around the plaza */}
       <mesh geometry={apron} material={toon(TERRAIN_GROUND[t])} position={[0, 0.015, 0]} receiveShadow />

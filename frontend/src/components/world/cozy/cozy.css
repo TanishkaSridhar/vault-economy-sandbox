@@ -61,6 +61,8 @@
 }
 .cz-role.is-dim { opacity: 0.35; }
 .cz-role.is-selected { transform: scale(1.15); }
+/* zoomed out to the whole map: name tags keep just the name (and hunger) */
+.cz-far .cz-tag { display: none; }
 .cz-hungry { margin-left: 2px; }
 
 .cz-card {

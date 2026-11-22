@@ -14,8 +14,9 @@ import { scatterTrees } from './scatter'
 import { Forest } from './props'
 import { CozyCtx } from './ctx'
 import { TownBlock } from './TownBlock'
-import { Slab, Roads, Clouds } from './Ground'
+import { Slab, Roads, Clouds, Land } from './Ground'
 import { AgentsLayer } from './AgentsLayer'
+import { buildRelief, rimTrees } from './relief'
 import { VILLAGER_SCALE } from './Villager'
 import { DecisionCard } from './DecisionCard'
 import { LabelProjector } from './labels'
@@ -97,14 +98,25 @@ export function CozyWorld(props: CozyWorldProps) {
     const rIn = roads.map(r => ({ town_a: r.town_a, town_b: r.town_b, terrain: r.terrain, distance: r.distance }))
     const layout = computeLayout(names, rIn)
     const paths = buildRoads(rIn, layout)
-    const bounds = worldBounds(layout, 11)
     const townInfo = towns.filter(t => layout[t.name]).map(t => ({
       name: t.name, terrain: t.terrain, at: layout[t.name] as XZ, spots: landmarkSpots(t.name, t.terrain, layout, paths),
     }))
-    return { layout, paths, bounds, townInfo }
+    // the land's shape; roads then follow it up and over the rises
+    const relief = buildRelief(townInfo, layout, paths)
+    for (const p of paths) for (const v of p.points) v.y = relief.height(v.x, v.z)
+    const bounds = worldBounds(layout, Math.max(11, relief.reach + 2))
+    return { layout, paths, bounds, townInfo, relief }
   }, [towns, roads])
   const trees = useMemo(
-    () => scatterTrees(world.townInfo, world.paths.map(p => p.points), world.bounds, lowGraphics ? 0.5 : 1),
+    () => scatterTrees(world.townInfo, world.paths.map(p => p.points), world.bounds, lowGraphics ? 0.5 : 1)
+      .concat(world.relief.rims.flatMap(m => rimTrees(m, world.paths)).map((t, i) => ({ ...t, kind: (i % 3 === 0 ? 'pine' : 'round') as 'pine' | 'round', s: 0.9 + (i % 4) * 0.12, color: [C.treeDeep, C.treeGreen, C.pine, C.treeOrange][i % 4] })))
+      .concat(world.relief.ridges.flatMap((r, i) => [-0.45, 0.05, 0.5].map((k, j) => {
+        // a few trees along each ridge's crest, so ridges read as wooded hillsides
+        const c = Math.cos(r.rot), s = Math.sin(r.rot)
+        const along = k * r.rx, across = ((i + j) % 2 ? 0.18 : -0.12) * r.rz
+        return { x: r.x + along * c + across * s, z: r.z - along * s + across * c, kind: (j === 1 ? 'pine' : 'round') as 'pine' | 'round', s: 0.85 + ((i * 3 + j) % 4) * 0.12, color: [C.treeDeep, C.treeGreen, C.pine][(i + j) % 3] }
+      })))
+      .map(t => ({ ...t, y: world.relief.height(t.x, t.z) })),
     [world, lowGraphics],
   )
 
@@ -133,7 +145,7 @@ export function CozyWorld(props: CozyWorldProps) {
 
   // Town label anchors are static; villager anchors follow the villagers every frame
   useEffect(() => {
-    for (const t of world.townInfo) anchors.current.set(`town:${t.name}`, { pos: new THREE.Vector3(t.at[0], 0, t.at[1] - 2.6 * TOWN_SCALE), h: 5.6 * TOWN_SCALE })
+    for (const t of world.townInfo) anchors.current.set(`town:${t.name}`, { pos: new THREE.Vector3(t.at[0], world.relief.lift(t.name), t.at[1] - 2.6 * TOWN_SCALE), h: 5.6 * TOWN_SCALE })
   }, [world])
   const onPosition = useCallback((name: string, p: THREE.Vector3) => {
     const h = 1.38 * VILLAGER_SCALE + (liftRef.current.get(name) ?? 0)
@@ -194,6 +206,7 @@ export function CozyWorld(props: CozyWorldProps) {
               viewKey={viewKey} track={track} anchorsRef={anchors} />
             <Suspense fallback={null}>
               <Slab bounds={world.bounds} />
+              <Land relief={world.relief} />
               <Roads roads={world.paths} />
               <Forest trees={trees} />
               {world.townInfo.map(t => {
@@ -204,6 +217,7 @@ export function CozyWorld(props: CozyWorldProps) {
                     name={t.name}
                     terrain={t.terrain}
                     center={t.at}
+                    lift={world.relief.lift(t.name)}
                     spots={t.spots}
                     stock={now?.stock}
                     hovered={hoverTown === t.name}
@@ -218,6 +232,7 @@ export function CozyWorld(props: CozyWorldProps) {
                 prevStates={prev}
                 decisions={moodDecisions}
                 layout={world.layout}
+                liftOf={world.relief.lift}
                 roads={world.paths}
                 turn={clock}
                 walkMs={walkMs}
@@ -241,7 +256,7 @@ export function CozyWorld(props: CozyWorldProps) {
             const now = priceNow.get(t.name), before = pricePrev.get(t.name)
             const trend = now && before ? Math.sign(Math.round((now.price - before.price) * 10)) : 0
             return (
-              <div key={t.name} ref={refFor(`town:${t.name}`)} className="cz-anchor">
+              <div key={t.name} ref={refFor(`town:${t.name}`)} className="cz-anchor" data-town={t.name}>
                 <div
                   className={`cz-town${hoverTown === t.name ? ' is-hover' : ''}`}
                   onClick={() => handleTownClick(t.name)}

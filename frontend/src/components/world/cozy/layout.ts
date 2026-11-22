@@ -12,7 +12,7 @@ export const TOWN_SCALE = 1.8
 export const TOWN_SIZE = PLAZA * TOWN_SCALE
 export const PLAZA_TOP = PLAZA_H * TOWN_SCALE
 /** How much the hand-made map is spread out compared with its original spacing. */
-const SPREAD = 1.8
+const SPREAD = 2.3
 /** Minimum distance between town centres. */
 export const MIN_TOWN_GAP = 14 * SPREAD
 
@@ -262,7 +262,7 @@ const SLOTS = buildSlots()
 const ROLE_ORDER: Record<string, number> = { Trader: 0, Farmer: 1, Diplomat: 2 }
 
 /** Stable standing spot for each agent currently in a town: traders nearest the stall. */
-export function townSlots(agentsHere: { name: string; role: string }[], center: XZ): Map<string, THREE.Vector3> {
+export function townSlots(agentsHere: { name: string; role: string }[], center: XZ, lift = 0): Map<string, THREE.Vector3> {
   const sorted = [...agentsHere].sort((a, b) =>
     (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3) || a.name.localeCompare(b.name))
   const out = new Map<string, THREE.Vector3>()
@@ -271,7 +271,7 @@ export function townSlots(agentsHere: { name: string; role: string }[], center: 
     if (i < SLOTS.length) local = SLOTS[i]
     else { const r = rng(hashString(a.name)); const ang = r() * Math.PI * 2; local = [Math.cos(ang) * (TOWN_SIZE / 2 + 6.6), Math.sin(ang) * (TOWN_SIZE / 2 + 6.6)] }
     const onPlaza = Math.abs(local[0]) <= TOWN_SIZE / 2 && Math.abs(local[1]) <= TOWN_SIZE / 2
-    out.set(a.name, new THREE.Vector3(center[0] + local[0], onPlaza ? PLAZA_TOP : 0.02, center[1] + local[1]))
+    out.set(a.name, new THREE.Vector3(center[0] + local[0], lift + (onPlaza ? PLAZA_TOP : 0.02), center[1] + local[1]))
   })
   return out
 }

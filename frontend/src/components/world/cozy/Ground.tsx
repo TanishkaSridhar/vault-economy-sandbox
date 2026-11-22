@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { C, TERRAIN_ACCENT } from './palette'
 import type { RoadPath } from './layout'
+import { moundGeometry, rimGeometry, RIDGE_SINK, type Relief } from './relief'
 import { ribbonGeometry, slabGeometry } from './shapes'
 import { toon, flat, geo, rng } from './toon'
 import { useCozy } from './ctx'
@@ -33,9 +34,32 @@ export function Roads({ roads }: { roads: RoadPath[] }) {
           <mesh geometry={g.edge} material={toon(g.accent)} receiveShadow />
           <mesh geometry={g.top} material={toon(C.path)} receiveShadow />
           {g.stones.map((p, i) => (
-            <mesh key={i} geometry={pebble} material={toon(C.pathEdge)} position={[p.x, 0.07, p.z]} scale={[0.32, 0.03, 0.22]} rotation={[0, i, 0]} />
+            <mesh key={i} geometry={pebble} material={toon(C.pathEdge)} position={[p.x, p.y + 0.07, p.z]} scale={[0.32, 0.03, 0.22]} rotation={[0, i, 0]} />
           ))}
         </group>
+      ))}
+    </StaticBatch>
+  )
+}
+
+/** The lie of the land: rises under hill and mountain towns, and ridges round valleys. */
+export function Land({ relief }: { relief: Relief }) {
+  const mounds = useMemo(() => relief.mounds.map(m => ({ m, g: moundGeometry(m) })), [relief])
+  const rims = useMemo(() => relief.rims.map(m => ({ m, g: rimGeometry(m) })), [relief])
+  useEffect(() => () => { mounds.forEach(x => x.g.dispose()); rims.forEach(x => x.g.dispose()) }, [mounds, rims])
+  const sphere = geo('ridge', () => new THREE.SphereGeometry(1, 28, 16))
+  return (
+    <StaticBatch deps={[relief]}>
+      {mounds.map(({ m, g }) => (
+        <group key={m.town} position={[m.x, 0, m.z]}>
+          <mesh geometry={g} material={toon(m.rocky ? C.rock : C.grass)} receiveShadow castShadow />
+          {/* a grassy cap on the rocky plateau, so the town doesn't sit on bare stone */}
+          {m.rocky && <mesh geometry={geo(`cap${m.top}`, () => new THREE.CircleGeometry(1, 40).rotateX(-Math.PI / 2))} material={toon(C.grassDark)} position={[0, m.h + 0.01, 0]} scale={m.top * 0.97} receiveShadow />}
+        </group>
+      ))}
+      {rims.map(({ m, g }) => <mesh key={m.town} geometry={g} material={toon(C.grassDark)} position={[m.x, 0, m.z]} receiveShadow castShadow />)}
+      {relief.ridges.map((r, i) => (
+        <mesh key={i} geometry={sphere} material={toon(r.color)} position={[r.x, -RIDGE_SINK * r.h, r.z]} rotation={[0, r.rot, 0]} scale={[r.rx, r.h, r.rz]} receiveShadow castShadow />
       ))}
     </StaticBatch>
   )

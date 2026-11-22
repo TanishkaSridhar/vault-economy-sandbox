@@ -11,6 +11,8 @@ interface Props {
   prevStates: AgentState[]   // previous turn
   decisions: Decision[]      // this turn
   layout: Record<string, XZ>
+  /** Ground height of each town's plaza (hill and mountain towns stand higher). */
+  liftOf: (town: string) => number
   roads: RoadPath[]
   turn: number
   walkMs: number
@@ -22,7 +24,7 @@ interface Props {
 
 /** Turns the per-turn data into villagers that walk the real roads between towns. */
 export function AgentsLayer(p: Props) {
-  const { agents, states, prevStates, decisions, layout, roads, turn, walkMs, selected, onSelect, onHover, onPosition } = p
+  const { agents, states, prevStates, decisions, layout, liftOf, roads, turn, walkMs, selected, onSelect, onHover, onPosition } = p
   const roleOf = useMemo(() => new Map(agents.map(a => [a.name, a.role])), [agents])
   const looks = useMemo(() => assignLooks(agents.map(a => a.name).concat(states.map(s => s.agent).filter(n => !roleOf.has(n)))), [agents, states, roleOf])
   const lastTurn = useRef<number | null>(null)
@@ -39,10 +41,10 @@ export function AgentsLayer(p: Props) {
     for (const [town, list] of byTown) {
       const c = layout[town]
       if (!c) continue
-      for (const [n, v] of townSlots(list, c)) out.set(n, v)
+      for (const [n, v] of townSlots(list, c, liftOf(town))) out.set(n, v)
     }
     return out
-  }, [states, layout, roleOf])
+  }, [states, layout, roleOf, liftOf])
 
   // Motions: walk the road when an agent changed town by one turn step, otherwise settle/snap.
   const motions = useMemo(() => {
@@ -61,8 +63,8 @@ export function AgentsLayer(p: Props) {
         if (hops) {
           for (let i = 0; i < hops.length - 1; i++) {
             const pts = roadPoints(roads, hops[i], hops[i + 1])
-            if (pts) path.push(...pts.map(v => v.clone().setY(0.06)))
-            if (i < hops.length - 2) { const c = layout[hops[i + 1]]; path.push(new THREE.Vector3(c[0], PLAZA_TOP, c[1])) }
+            if (pts) path.push(...pts.map(v => v.clone().setY(v.y + 0.06)))
+            if (i < hops.length - 2) { const c = layout[hops[i + 1]]; path.push(new THREE.Vector3(c[0], PLAZA_TOP + liftOf(hops[i + 1]), c[1])) }
           }
         }
         out.set(s.agent, { id, home, path, duration: walkMs })
